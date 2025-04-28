@@ -1,48 +1,35 @@
-from sqlalchemy import ForeignKey
-from sqlalchemy import String
-from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy.orm import Mapped
-from sqlalchemy.orm import mapped_column
-from sqlalchemy.orm import relationship
-from typing import List
-from typing import Optional
+"""
+This module is responsible for creating Country and Bank models.
+"""
+
+from sqlmodel import Field, Relationship, SQLModel
 
 
-class Base(DeclarativeBase):
-    pass
+class Country(SQLModel, table=True):
+    """
+    Table model for the country.
+    """
+    id: int | None = Field(default=None, primary_key=True)
+    iso2: str = Field(min_length=2, max_length=2, index=True)
+    name: str
+
+    banks: list["Bank"] = Relationship(back_populates="country")
 
 
-class Country(Base):
-    __tablename__ = "country"
+class Bank(SQLModel, table=True):
+    """
+    Table model for the bank.
+    """
+    id: int | None = Field(default=None, primary_key=True)
+    swift_code: str = Field(min_length=11, max_length=11, index=True)
+    name: str
+    address: str | None = Field(default=None)
+    is_headquarter: bool
+    country_id: int = Field(default=None, foreign_key="country.id")
+    headquarter_id: int | None = Field(default=None, foreign_key="bank.id")
 
-    country_iso2: Mapped[str] = mapped_column(String(2), primary_key=True)
-    country_name: Mapped[str]
-
-    banks: Mapped[Optional[List["Bank"]]] = relationship(back_populates="country")
-
-    def __repr__(self) -> str:
-        return f"Country(country_iso2={self.country_iso2!r}, country_name={self.country_name!r}, banks={[self.banks[i].swift_code for i in range(len(self.banks))]!r})"
-
-
-class Bank(Base):
-    __tablename__ = "bank"
-
-    swift_code: Mapped[str] = mapped_column(String(11), primary_key=True)
-    bank_name: Mapped[str]
-    address: Mapped[Optional[str]]
-    is_headquarter: Mapped[bool]
-    country_iso2 = mapped_column(String, ForeignKey("country.country_iso2"))
-    hq_swift_code: Mapped[Optional[str]] = mapped_column(
-        String, ForeignKey("bank.swift_code")
+    country: Country = Relationship(back_populates="banks")
+    headquarter: "Bank" = Relationship(
+        sa_relationship_kwargs=dict(remote_side="Bank.id"), back_populates="branches"
     )
-
-    country: Mapped["Country"] = relationship(back_populates="banks")
-    headquarter: Mapped[Optional["Bank"]] = relationship("Bank")
-
-    def __repr__(self) -> str:
-        return (
-            f"Bank(swift_code={self.swift_code!r}, "
-            f"bank_name={self.bank_name!r}, address={self.address!r}, "
-            f"country_iso2={self.country_iso2!r}, is_headquarter={self.is_headquarter!r}, "
-            f"hq_swift_code={self.hq_swift_code!r})"
-        )
+    branches: list["Bank"] = Relationship(back_populates="headquarter")
