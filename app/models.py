@@ -1,14 +1,10 @@
-"""
-This module is responsible for creating Country and Bank models.
-"""
+"""This module is responsible for creating Country and Bank models."""
 
 from sqlmodel import Field, Relationship, SQLModel
 
 
 class Bank(SQLModel, table=True):
-    """
-    Table model for the bank.
-    """
+    """Table model for the bank."""
 
     id: int | None = Field(default=None, primary_key=True)
     swift_code: str = Field(min_length=11, max_length=11, index=True)
@@ -26,9 +22,7 @@ class Bank(SQLModel, table=True):
 
 
 class Country(SQLModel, table=True):
-    """
-    Table model for the country.
-    """
+    """Table model for the country."""
 
     id: int | None = Field(default=None, primary_key=True)
     iso2: str = Field(min_length=2, max_length=2, index=True)
