@@ -1,5 +1,6 @@
 """This module is responsible for extracting required information from the Excel Spreadsheet."""
 
+import numpy as np
 import pandas as pd
 
 
@@ -30,8 +31,10 @@ def extract_banks_data(file_path: str):
     }
 
     try:
-        df = pd.read_excel(file_path, usecols=columns_to_use).rename(
-            columns=columns_renaming_dict
+        df = (
+            pd.read_excel(file_path, usecols=columns_to_use)
+            .rename(columns=columns_renaming_dict)
+            .replace({np.nan: None})  # otherwise empty strings are nan
         )
     except FileNotFoundError:
         print("Path to the file containg banks data is incorrect.")
@@ -46,7 +49,7 @@ def extract_banks_data(file_path: str):
     # checks are performed during DB insertion
 
     return df.sort_values(  # headquarters need to be inserted first for the referential integrity
-        by="is_headquarter", ascending=False
+        by=["is_headquarter", "swift_code"], ascending=[False, True]
     ).to_dict(
         "records"
     )
@@ -81,6 +84,7 @@ def extract_countries_data(file_path: str):
             pd.read_excel(file_path, usecols=columns_to_use)
             .drop_duplicates()  # there can be many banks from the same country
             .rename(columns=columns_renaming_dict)
+            .sort_values(by="iso2")
             .to_dict("records")
         )
     except FileNotFoundError:
