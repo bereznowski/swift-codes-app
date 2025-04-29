@@ -161,11 +161,6 @@ def test_extract_banks_data(mock_df, expected_banks_result):
         The data used in mock Excel file.
     expected_banks_result : list[dict]
         List of dicts representing expected results.
-
-    Returns
-    -------
-    dict
-        Dictionary of values to be used during banks' table model creation.
     """
     output = BytesIO()
 
@@ -186,11 +181,6 @@ def test_extract_countries_data(mock_df, expected_countries_result):
         The data used in mock Excel file.
     expected_countries_result : list[dict]
         List of dicts representing expected results.
-
-    Returns
-    -------
-    dict
-        Dictionary of values to be used during countries' table model creation.
     """
     output = BytesIO()
 
