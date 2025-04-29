@@ -24,9 +24,14 @@ def extract_banks_data(file_path: str):
         "COUNTRY ISO2 CODE": "country_iso2",
     }
 
-    df = pd.read_excel(file_path, usecols=columns_to_use).rename(
-        columns=columns_renaming_dict
-    )
+    try:
+        df = pd.read_excel(file_path, usecols=columns_to_use).rename(
+            columns=columns_renaming_dict
+        )
+    except FileNotFoundError:
+        print("Path to the file containg banks data is incorrect.")
+        print("No banks data extracted.")
+        return {}
 
     df["is_headquarter"] = df["swift_code"].str.endswith("XXX")
     df["potential_hq"] = df["swift_code"].str[:8] + str(
@@ -61,9 +66,14 @@ def extract_countries_data(file_path: str):
         "COUNTRY NAME": "name",
     }
 
-    return (
-        pd.read_excel(file_path, usecols=columns_to_use)
-        .drop_duplicates()  # there can be many banks from the same country
-        .rename(columns=columns_renaming_dict)
-        .to_dict("records")
-    )
+    try:
+        return (
+            pd.read_excel(file_path, usecols=columns_to_use)
+            .drop_duplicates()  # there can be many banks from the same country
+            .rename(columns=columns_renaming_dict)
+            .to_dict("records")
+        )
+    except FileNotFoundError:
+        print("Path to the file containg countries data is incorrect.")
+        print("No countries data extracted.")
+        return {}
