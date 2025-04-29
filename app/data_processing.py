@@ -15,6 +15,11 @@ def extract_banks_data(file_path: str):
     -------
     dict
         Dictionary of values to be used during banks' table model creation.
+
+    Raises
+    ------
+    FileNotFoundError
+        When incorrect file path.
     """
     columns_to_use = ["SWIFT CODE", "NAME", "ADDRESS", "COUNTRY ISO2 CODE"]
     columns_renaming_dict = {
@@ -59,6 +64,11 @@ def extract_countries_data(file_path: str):
     -------
     dict
         Dictionary of values to be used during countries' table model creation.
+
+    Raises
+    ------
+    FileNotFoundError
+        When incorrect file path.
     """
     columns_to_use = ["COUNTRY ISO2 CODE", "COUNTRY NAME"]
     columns_renaming_dict = {
