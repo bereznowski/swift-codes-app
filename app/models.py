@@ -7,7 +7,7 @@ class Bank(SQLModel, table=True):
     """Table model for the bank."""
 
     id: int | None = Field(default=None, primary_key=True)
-    swift_code: str = Field(min_length=11, max_length=11, index=True)
+    swift_code: str = Field(min_length=11, max_length=11, index=True, unique=True)
     name: str
     address: str | None = Field(default=None)
     is_headquarter: bool
@@ -25,7 +25,7 @@ class Country(SQLModel, table=True):
     """Table model for the country."""
 
     id: int | None = Field(default=None, primary_key=True)
-    iso2: str = Field(min_length=2, max_length=2, index=True)
+    iso2: str = Field(min_length=2, max_length=2, index=True, unique=True)
     name: str
 
     banks: list["Bank"] = Relationship(back_populates="country")
