@@ -1,4 +1,4 @@
-"""This module is responsible for testing models from app/models.py"""
+"""This module includes unit tests for functions from app/models.py"""
 
 import pytest
 
