@@ -5,7 +5,7 @@ from io import BytesIO
 import pytest
 import pandas as pd
 
-from app.data_processing import extract_banks_data, extract_countries_data
+from src.data_processing import extract_banks_data, extract_countries_data
 
 
 @pytest.fixture(name="mock_df")

@@ -4,7 +4,7 @@ import pytest
 
 from sqlmodel import Session, SQLModel, create_engine, select
 
-from app.models import Bank, Country
+from src.models import Bank, Country
 
 
 @pytest.fixture(name="banks_data")

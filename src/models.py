@@ -28,4 +28,4 @@ class Country(SQLModel, table=True):
     iso2: str = Field(min_length=2, max_length=2, index=True, unique=True)
     name: str
 
-    banks: list["Bank"] = Relationship(back_populates="country")
+    banks: list["Bank"] = Relationship(back_populates="country")  # TODO: explicitly define action on delete

@@ -8,25 +8,24 @@ from .models import Bank, Country
 
 
 # TODO: insert data from excel into table models
-def create_countries():
+def create_banks(banks_data: list[dict]):
     with Session(engine) as session:
         pass
 
 
-def create_banks():
+def create_countries(countries_data: list[dict]):
     with Session(engine) as session:
         pass
+
 
 def main():
-    excel_file_path = ""
+    excel_file_path = "./data/swift_codes.xlsx"
     banks_data = extract_banks_data(excel_file_path)
     countries_data = extract_countries_data(excel_file_path)
     create_db_and_tables()
-    create_countries()
-    create_banks()
+    create_countries(countries_data=countries_data)
+    create_banks(banks_data=banks_data)
 
-    print(banks_data)
-    print(countries_data)
     # TODO: add FastAPI
 
 
