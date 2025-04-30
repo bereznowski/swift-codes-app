@@ -7,7 +7,13 @@ from .data_processing import extract_banks_data, extract_countries_data
 from .models import Bank, Country
 
 
-def create_banks(banks_data: list[dict]):
+def get_session():
+    """Gets new session."""
+    with Session(engine) as session:
+        yield session
+
+
+def create_banks(*, session: Session, banks_data: list[dict]):
     """Adds banks data to database.
 
     Parameters
@@ -24,31 +30,30 @@ def create_banks(banks_data: list[dict]):
                 "potential_hq": str
             }
     """
-    with Session(engine) as session:
-        for bank in banks_data:
-            address = None if bank["address"].strip() == "" else bank["address"].strip()
-            country = session.exec(
-                select(Country).where(Country.iso2 == bank["country_iso2"])
-            ).first()
-            headquarter = session.exec(
-                select(Bank).where(Bank.swift_code == bank["potential_hq"])
-            ).first()
+    for bank in banks_data:
+        address = None if bank["address"].strip() == "" else bank["address"].strip()
+        country = session.exec(
+            select(Country).where(Country.iso2 == bank["country_iso2"])
+        ).first()
+        headquarter = session.exec(
+            select(Bank).where(Bank.swift_code == bank["potential_hq"])
+        ).first()
 
-            session.add(
-                Bank(
-                    swift_code=bank["swift_code"],
-                    name=bank["name"],
-                    address=address,
-                    is_headquarter=bank["is_headquarter"],
-                    country=country,
-                    headquarter=headquarter,
-                )
+        session.add(
+            Bank(
+                swift_code=bank["swift_code"],
+                name=bank["name"],
+                address=address,
+                is_headquarter=bank["is_headquarter"],
+                country=country,
+                headquarter=headquarter,
             )
+        )
 
-            session.commit()
+        session.commit()
 
 
-def create_countries(countries_data: list[dict]):
+def create_countries(*, session: Session, countries_data: list[dict]):
     """Adds countries data to database.
 
     Parameters
@@ -61,10 +66,9 @@ def create_countries(countries_data: list[dict]):
                 "name": str
             }
     """
-    with Session(engine) as session:
-        for country in countries_data:
-            session.add(Country(iso2=country["iso2"], name=country["name"]))
-        session.commit()
+    for country in countries_data:
+        session.add(Country(iso2=country["iso2"], name=country["name"]))
+    session.commit()
 
 
 def main():
@@ -73,8 +77,8 @@ def main():
     banks_data = extract_banks_data(excel_file_path)
     countries_data = extract_countries_data(excel_file_path)
     create_db_and_tables()
-    create_countries(countries_data=countries_data)
-    create_banks(banks_data=banks_data)
+    create_countries(session=get_session(), countries_data=countries_data)
+    create_banks(session=get_session(), banks_data=banks_data)
 
     # TODO: add FastAPI
 

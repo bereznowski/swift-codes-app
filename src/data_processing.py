@@ -43,7 +43,7 @@ def extract_banks_data(file_path: str):
         df = (
             pd.read_excel(file_path, usecols=columns_to_use)
             .rename(columns=columns_renaming_dict)
-            .replace({np.nan: None})  # otherwise empty strings are nan
+            .replace({np.nan: ""})  # otherwise empty strings are nan
         )
     except FileNotFoundError:
         print("Path to the file containg banks data is incorrect.")
