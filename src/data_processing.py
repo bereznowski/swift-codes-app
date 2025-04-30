@@ -16,6 +16,15 @@ def extract_banks_data(file_path: str):
     -------
     list[dict]
         Dictionaries of values to be used during banks' table model creation.
+        Structure of the dictionaries:
+            {
+                "country_iso2": str,
+                "swift_code": str,
+                "name": str,
+                "address": str,
+                "is_headquarter": bool,
+                "potential_hq": str
+            }
 
     Raises
     ------
@@ -67,6 +76,11 @@ def extract_countries_data(file_path: str):
     -------
     list[dict]
         Dictionaries of values to be used during countries' table model creation.
+        Structure of the dictionaries:
+            {
+                "iso2": str,
+                "name": str
+            }
 
     Raises
     ------
