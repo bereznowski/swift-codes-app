@@ -14,8 +14,8 @@ def extract_banks_data(file_path: str):
 
     Returns
     -------
-    dict
-        Dictionary of values to be used during banks' table model creation.
+    list[dict]
+        Dictionaries of values to be used during banks' table model creation.
 
     Raises
     ------
@@ -65,8 +65,8 @@ def extract_countries_data(file_path: str):
 
     Returns
     -------
-    dict
-        Dictionary of values to be used during countries' table model creation.
+    list[dict]
+        Dictionaries of values to be used during countries' table model creation.
 
     Raises
     ------
