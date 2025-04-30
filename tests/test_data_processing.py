@@ -1,4 +1,4 @@
-"""This module includes unit tests for functions from app/data_processing.py"""
+"""This module includes unit tests for functions from src/data_processing.py"""
 
 from io import BytesIO
 

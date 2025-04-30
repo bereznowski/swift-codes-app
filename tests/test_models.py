@@ -1,4 +1,4 @@
-"""This module includes unit tests for functions from app/models.py"""
+"""This module includes unit tests for functions from src/models.py"""
 
 import pytest
 
