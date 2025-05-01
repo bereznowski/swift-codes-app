@@ -80,7 +80,7 @@ def fixture_banks_data():
         {
             "swift_code": "C1234567890",
             "name": "Commerzbank",
-            "address": None,
+            "address": "",
             "is_headquarter": False,
             "country_iso2": "DE",
             "headquarter": "C1234567XXX",

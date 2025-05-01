@@ -48,7 +48,7 @@ def extract_banks_data(file_path: str):
     except FileNotFoundError:
         print("Path to the file containg banks data is incorrect.")
         print("No banks data extracted.")
-        return {}
+        return [{}]
 
     df["is_headquarter"] = df["swift_code"].str.endswith("XXX")
     df["potential_hq"] = df["swift_code"].str[:8] + str(

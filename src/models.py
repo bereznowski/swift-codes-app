@@ -9,7 +9,7 @@ class Bank(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     swift_code: str = Field(min_length=11, max_length=11, index=True, unique=True)
     name: str
-    address: str | None = Field(default=None)  # TODO: change to only
+    address: str # TODO: change to only
     is_headquarter: bool
     country_id: int = Field(foreign_key="country.id")
     headquarter_id: int | None = Field(
@@ -46,7 +46,7 @@ class BankBase(SQLModel):
 
 
 class BankCreate(BankBase):
-    countryName: str
+    countryName: str  # TODO: change order of fields returned by SQLModel
 
     @classmethod
     def from_bank(cls, bank: Bank):

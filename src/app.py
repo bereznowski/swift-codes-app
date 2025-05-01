@@ -9,7 +9,6 @@ from .database import create_db_and_tables, engine
 from .data_processing import extract_banks_data, extract_countries_data
 from .models import (
     Bank,
-    BankBase,
     BankCreate,
     BankWithBranches,
     Country,
@@ -23,7 +22,7 @@ def get_session():
         yield session
 
 
-def create_banks(*, session: Session, banks_data: list[dict]):
+def create_banks(*, session: Session = next(get_session()), banks_data: list[dict]):
     """Adds banks data to database.
 
     Parameters
@@ -41,7 +40,6 @@ def create_banks(*, session: Session, banks_data: list[dict]):
             }
     """
     for bank in banks_data:
-        address = None if bank["address"].strip() == "" else bank["address"].strip()
         country = session.exec(
             select(Country).where(Country.iso2 == bank["country_iso2"])
         ).first()
@@ -53,7 +51,7 @@ def create_banks(*, session: Session, banks_data: list[dict]):
             Bank(
                 swift_code=bank["swift_code"],
                 name=bank["name"],
-                address=address,
+                address=bank["address"],
                 is_headquarter=bank["is_headquarter"],
                 country=country,
                 headquarter=headquarter,
@@ -63,7 +61,9 @@ def create_banks(*, session: Session, banks_data: list[dict]):
         session.commit()
 
 
-def create_countries(*, session: Session, countries_data: list[dict]):
+def create_countries(
+    *, session: Session = next(get_session()), countries_data: list[dict]
+):
     """Adds countries data to database.
 
     Parameters
@@ -88,15 +88,16 @@ async def lifespan(app: FastAPI):
     banks_data = extract_banks_data(excel_file_path)
     countries_data = extract_countries_data(excel_file_path)
     create_db_and_tables()
-    # create_countries(session=get_session(), countries_data=countries_data)
-    # create_banks(session=get_session(), banks_data=banks_data)
+    with Session(engine) as session:
+        create_countries(session=session, countries_data=countries_data)
+        create_banks(session=session, banks_data=banks_data)
     yield
 
 
 app = FastAPI(lifespan=lifespan)  # TODO: ensure proper error handling and all use cases
 
 
-@app.post("/v1/swift-codes")
+@app.post("/v1/swift-codes")  # TODO: add response models
 def create_bank(bank_create: BankCreate):
     with Session(engine) as session:
         country = session.exec(
@@ -142,6 +143,12 @@ def read_country(country_iso2_code: str):
             select(Country).where(Country.iso2 == country_iso2_code)
         ).first()
 
+        if not country:
+            raise HTTPException(
+                status_code=404,
+                detail=f"countryISO2 code = {country_iso2_code} not found",
+            )
+
         return CountryWithBanks.from_country(country)
 
 
@@ -150,7 +157,9 @@ def delete_bank(swift_code: str):
     with Session(engine) as session:
         bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
         if not bank:
-            raise HTTPException(status_code=404, detail="SWIFT code not found")
+            raise HTTPException(
+                status_code=404, detail=f"SWIFT code = {swift_code} not found"
+            )
         session.delete(bank)
         session.commit()
         return {"ok": True}
