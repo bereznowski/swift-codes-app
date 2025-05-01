@@ -2,12 +2,17 @@
 
 from sqlmodel import Field, Relationship, SQLModel
 
+ISO2_LEN = 2
+SWIFT_CODE_LEN = 11
+
 
 class Bank(SQLModel, table=True):
     """Table model for the bank."""
 
     id: int | None = Field(default=None, primary_key=True)
-    swift_code: str = Field(min_length=11, max_length=11, index=True, unique=True)
+    swift_code: str = Field(
+        min_length=SWIFT_CODE_LEN, max_length=SWIFT_CODE_LEN, index=True, unique=True
+    )
     name: str
     address: str
     is_headquarter: bool
@@ -34,9 +39,9 @@ class BankWithoutBranches(SQLModel):
 
     address: str
     bankName: str
-    countryISO2: str = Field(min_length=2, max_length=2)
+    countryISO2: str = Field(min_length=ISO2_LEN, max_length=ISO2_LEN)
     isHeadquarter: bool
-    swiftCode: str = Field(min_length=11, max_length=11)
+    swiftCode: str = Field(min_length=SWIFT_CODE_LEN, max_length=SWIFT_CODE_LEN)
 
     @classmethod
     def from_bank(cls, bank: Bank):
@@ -112,11 +117,9 @@ class Country(SQLModel, table=True):
     """Table model for the country."""
 
     id: int | None = Field(default=None, primary_key=True)
-    iso2: str = Field(min_length=2, max_length=2, index=True, unique=True)
+    iso2: str = Field(min_length=ISO2_LEN, max_length=ISO2_LEN, index=True, unique=True)
     name: str
-    banks: list["Bank"] = Relationship(
-        back_populates="country"
-    )  # TODO: define action on delete
+    banks: list["Bank"] = Relationship(back_populates="country")
 
 
 class CountryWithBanks(SQLModel):

@@ -16,6 +16,8 @@ from .models import (
     BankWithoutBranches,
     Country,
     CountryWithBanks,
+    SWIFT_CODE_LEN,
+    ISO2_LEN,
 )
 
 
@@ -99,13 +101,105 @@ async def lifespan(app: FastAPI):
     banks_data = extract_banks_data(excel_file_path)
     countries_data = extract_countries_data(excel_file_path)
     create_db_and_tables()
-    with Session(engine) as session:
+    with Session(engine) as session:  # TODO: to be dependent on existance of .db file
         create_countries(session=session, countries_data=countries_data)
         create_banks(session=session, banks_data=banks_data)
     yield
 
 
 app = FastAPI(lifespan=lifespan)
+
+
+def check_swift_code_correctness(swift_code: str):
+    """Checks if the provided string has 11 uppercase characters.
+
+    Parameters
+    ----------
+    swift_code : str
+        String to be checked for correctness.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the string is incorrect.
+    """
+    if len(swift_code) != SWIFT_CODE_LEN:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"SWIFT code should consist of {SWIFT_CODE_LEN} characters.",
+        )
+
+    if not swift_code.isupper():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="All characters in SWIFT code should be uppercase.",
+        )
+
+
+def check_country_iso2_code_correctness(country_iso2_code: str):
+    """Checks if the provided string has 2 uppercase characters.
+
+    Parameters
+    ----------
+    country_iso2_code : str
+        String to be checked for correctness.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the string is incorrect.
+    """
+    if len(country_iso2_code) != ISO2_LEN:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"ISO2 code should consist of {ISO2_LEN} characters.",
+        )
+
+    if not country_iso2_code.isupper():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="All characters in ISO2 code should be uppercase.",
+        )
+
+
+def check_country_name_correctness(country_name: str):
+    """Checks if the provided string is uppercase.
+
+    Parameters
+    ----------
+    country_name : str
+        String to be checked for correctness.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the string is not uppercase.
+    """
+    if not country_name.isupper():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="All characters in country name should be uppercase.",
+        )
+
+
+def check_if_exists_in_db(obj: Bank | Country):
+    """Checks if the given object exists.
+
+    Parameters
+    ----------
+    obj : Bank | Country
+        Bank or Country object to be checked.
+
+    Raises
+    ------
+    HTTPException
+        Not found (404) if the object does not exist.
+    """
+    if not obj:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Item does not exist.",
+        )
 
 
 @app.get(
@@ -127,9 +221,16 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
     -------
     BankWithBranches or BankWithoutBranches
         Bank information with branches if headquarter, otherwise without branches.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the SWIFT code is incorrect.
+        Not found (404) if a bank with a given SWIFT code does not exist in the database.
     """
-    # TODO: add proper error handling
+    check_swift_code_correctness(swift_code)
     bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
+    check_if_exists_in_db(bank)
 
     if bank.is_headquarter:
         return BankWithBranches.from_bank(bank)
@@ -156,17 +257,18 @@ def read_country(*, session: Session = Depends(get_session), country_iso2_code: 
     -------
     CountryWithBanks
         Country information with associated banks.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the country ISO2 code is incorrect.
+        Not found (404) if a country with a given ISO2 code does not exist in the database.
     """
-    # TODO: add proper error handling
+    check_country_iso2_code_correctness(country_iso2_code)
     country = session.exec(
         select(Country).where(Country.iso2 == country_iso2_code)
     ).first()
-
-    if not country:
-        raise HTTPException(
-            status_code=404,
-            detail=f"countryISO2 code = {country_iso2_code} not found",
-        )
+    check_if_exists_in_db(country)
 
     return CountryWithBanks.from_country(country)
 
@@ -186,23 +288,37 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
     -------
     JSONResponse
         Information about successfull creation of the bank and the country (if needed).
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the country ISO2 code is incorrect.
+        Unprocessable entity (422) if the country name is not uppercase.
+        Unprocessable entity (422) if the bank SWIFT code is incorrect.
+        Conflict (409) if provided country name is different from the one in the database.
     """
-    # TODO: add proper error handling
-    # - validity (uppercase swift, iso, and country name)
-    # - country exists (iso and name need to be correct)
-    # - country does not exists (create)
+    check_country_iso2_code_correctness(bank_create.countryISO2)
+    check_country_name_correctness(bank_create.countryName)
+    check_swift_code_correctness(bank_create.swiftCode)
 
     country = session.exec(
         select(Country).where(Country.iso2 == bank_create.countryISO2)
     ).first()
 
-    # actually, this POST can create new countries
-    if country is None:
+    if not Country:  # new countries are created when needed
         country = Country(iso2=bank_create.countryISO2, name=bank_create.countryName)
         session.add(country)
         session.commit()
         session.refresh(country)
-
+    else:
+        if country.name != bank_create.countryName:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=(
+                    "In our database the countryName for countryISO2 ="
+                    + f" {country.iso2} is {country.name}."
+                ),
+            )
 
     bank = Bank(
         swift_code=bank_create.swiftCode,
@@ -220,7 +336,7 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
         content={
             "message": f"SWIFT CODE = {bank_create.swiftCode} successfully create."
         }
-    )  
+    )
 
 
 @app.delete("/v1/swift-codes/{swift_code}", status_code=status.HTTP_204_NO_CONTENT)
@@ -238,13 +354,16 @@ def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
     -------
     JSONResponse
         Information about successfull deletion of the bank.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the SWIFT code is incorrect.
+        Not found (404) if a bank with a given SWIFT code does not exist in the database.
     """
-    # TODO: add proper error handling
+    check_swift_code_correctness(swift_code)
     bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
-    if not bank:
-        raise HTTPException(
-            status_code=404, detail=f"SWIFT code = {swift_code} not found"
-        )
+    check_if_exists_in_db(bank)
     deleted_swift_code = bank.swift_code
     session.delete(bank)
     session.commit()
