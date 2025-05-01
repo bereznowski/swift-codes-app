@@ -2,14 +2,14 @@
 
 from sqlmodel import Field, Relationship, SQLModel
 
-# TODO: check correctness of all provided data
+
 class Bank(SQLModel, table=True):
     """Table model for the bank."""
 
     id: int | None = Field(default=None, primary_key=True)
     swift_code: str = Field(min_length=11, max_length=11, index=True, unique=True)
     name: str
-    address: str # TODO: change to only
+    address: str
     is_headquarter: bool
     country_id: int = Field(foreign_key="country.id")
     headquarter_id: int | None = Field(
@@ -27,7 +27,11 @@ class Bank(SQLModel, table=True):
     )
 
 
-class BankBase(SQLModel):
+class BankWithoutBranches(SQLModel):
+    """Object model for the bank used when describing branches of a headquarter
+    or banks from a given country.
+    """
+
     address: str
     bankName: str
     countryISO2: str = Field(min_length=2, max_length=2)
@@ -36,6 +40,18 @@ class BankBase(SQLModel):
 
     @classmethod
     def from_bank(cls, bank: Bank):
+        """Creates object of BankWithoutBranches based on the Bank object.
+
+        Parameters
+        ----------
+        bank : Bank
+            Bank object to be converted.
+
+        Returns
+        -------
+        BankWithoutBranches
+            New object of the BankWithoutBranches class.
+        """
         return cls(
             address=bank.address,
             bankName=bank.name,
@@ -45,22 +61,50 @@ class BankBase(SQLModel):
         )
 
 
-class BankCreate(BankBase):
+class BankCreate(BankWithoutBranches):
+    """Object model for the bank used when creating new banks or describing branches directly."""
+
     countryName: str  # TODO: change order of fields returned by SQLModel
 
     @classmethod
     def from_bank(cls, bank: Bank):
-        base = BankBase.from_bank(bank)
+        """Creates object of BankCreate based on the Bank object.
+
+        Parameters
+        ----------
+        bank : Bank
+            Bank object to be converted.
+
+        Returns
+        -------
+        BankCreate
+            New object of the BankCreate class.
+        """
+        base = BankWithoutBranches.from_bank(bank)
         return cls(**base.model_dump(), countryName=bank.country.name)
 
 
 class BankWithBranches(BankCreate):
-    branches: list[BankBase]
+    """Object model for the bank used when describing a headquarter."""
+
+    branches: list[BankWithoutBranches]
 
     @classmethod
     def from_bank(cls, bank: Bank):
+        """Creates object of BankWithBranches based on the Bank object.
+
+        Parameters
+        ----------
+        bank : Bank
+            Bank object to be converted.
+
+        Returns
+        -------
+        BankWithBranches
+            New object of the BankWithBranches class.
+        """
         base = BankCreate.from_bank(bank)
-        branches = [BankBase.from_bank(b) for b in bank.branches]
+        branches = [BankWithoutBranches.from_bank(b) for b in bank.branches]
         return cls(**base.model_dump(), branches=branches)
 
 
@@ -72,17 +116,31 @@ class Country(SQLModel, table=True):
     name: str
     banks: list["Bank"] = Relationship(
         back_populates="country"
-    )  # TODO: explicitly define action on delete
+    )  # TODO: define action on delete
 
 
 class CountryWithBanks(SQLModel):
+    """Object model for the country used when describing country with associated banks."""
+
     countryISO2: str
     countryName: str
-    swiftCodes: list[BankBase]
+    swiftCodes: list[BankWithoutBranches]
 
     @classmethod
     def from_country(cls, country: Country):
-        swiftCodes = [BankBase.from_bank(b) for b in country.banks]
+        """Creates object of CountryWithBanks based on the Country object.
+
+        Parameters
+        ----------
+        country : Country
+            Country object to be converted.
+
+        Returns
+        -------
+        CountryWithBanks
+            New object of the CountryWithBanks class.
+        """
+        swift_codes = [BankWithoutBranches.from_bank(b) for b in country.banks]
         return cls(
-            countryISO2=country.iso2, countryName=country.name, swiftCodes=swiftCodes
+            countryISO2=country.iso2, countryName=country.name, swiftCodes=swift_codes
         )
