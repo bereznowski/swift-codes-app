@@ -1,5 +1,7 @@
 """This module is responsible for connecting all parts of the app."""
 
+import os
+
 from contextlib import asynccontextmanager
 from typing import Union
 
@@ -21,7 +23,7 @@ from .models import (
 )
 
 
-def get_session():
+def get_session():  # TODO: move to utils.py
     """Gets new session."""
     with Session(engine) as session:
         yield session
@@ -98,12 +100,14 @@ async def lifespan(app: FastAPI):
         FastApi to be used.
     """
     excel_file_path = "./data/swift_codes.xlsx"
+    database_file_path = "./data/database.db"
     banks_data = extract_banks_data(excel_file_path)
     countries_data = extract_countries_data(excel_file_path)
-    create_db_and_tables()
-    with Session(engine) as session:  # TODO: to be dependent on existance of .db file
-        create_countries(session=session, countries_data=countries_data)
-        create_banks(session=session, banks_data=banks_data)
+    if not os.path.exists(database_file_path):
+        create_db_and_tables()
+        with Session(engine) as session:
+            create_countries(session=session, countries_data=countries_data)
+            create_banks(session=session, banks_data=banks_data)
     yield
 
 
