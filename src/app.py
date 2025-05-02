@@ -7,6 +7,7 @@ from typing import Union
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, engine
@@ -14,80 +15,20 @@ from .data_processing import extract_banks_data, extract_countries_data
 from .models import (
     Bank,
     BankCreate,
-    BankWithBranches,
-    BankWithoutBranches,
+    BankHeadquarter,
+    BankBranch,
     Country,
     CountryWithBanks,
-    SWIFT_CODE_LEN,
-    ISO2_LEN,
 )
-
-
-def get_session():  # TODO: move to utils.py
-    """Gets new session."""
-    with Session(engine) as session:
-        yield session
-
-
-def create_banks(*, session: Session, banks_data: list[dict]):
-    """Adds banks data to database.
-
-    Parameters
-    ----------
-    session : sqlmodel.Session
-        SQLModel Session used to interact with the database.
-    banks_data : list[dict]
-        Dictionaries of values to be used during banks' table model creation.
-        Structure of the dictionaries:
-            {
-                "country_iso2": str,
-                "swift_code": str,
-                "name": str,
-                "address": str,
-                "is_headquarter": bool,
-                "potential_hq": str
-            }
-    """
-    for bank in banks_data:
-        country = session.exec(
-            select(Country).where(Country.iso2 == bank["country_iso2"])
-        ).first()
-        headquarter = session.exec(
-            select(Bank).where(Bank.swift_code == bank["potential_hq"])
-        ).first()
-
-        session.add(
-            Bank(
-                swift_code=bank["swift_code"],
-                name=bank["name"],
-                address=bank["address"],
-                is_headquarter=bank["is_headquarter"],
-                country=country,
-                headquarter=headquarter,
-            )
-        )
-
-        session.commit()
-
-
-def create_countries(*, session: Session, countries_data: list[dict]):
-    """Adds countries data to database.
-
-    Parameters
-    ----------
-    session : sqlmodel.Session
-        SQLModel Session used to interact with the database.
-    countries_data : list[dict]
-        Dictionaries of values to be used during countries' table model creation.
-            Structure of the dictionaries:
-            {
-                "iso2": str,
-                "name": str
-            }
-    """
-    for country in countries_data:
-        session.add(Country(iso2=country["iso2"], name=country["name"]))
-    session.commit()
+from .utils import (
+    create_banks,
+    create_countries,
+    check_country_iso2_code_correctness,
+    check_country_name_correctness,
+    check_if_exists_in_db,
+    check_swift_code_correctness,
+    get_session,
+)
 
 
 @asynccontextmanager
@@ -114,102 +55,10 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
-def check_swift_code_correctness(swift_code: str):
-    """Checks if the provided string has 11 uppercase characters.
-
-    Parameters
-    ----------
-    swift_code : str
-        String to be checked for correctness.
-
-    Raises
-    ------
-    HTTPException
-        Unprocessable entity (422) if the string is incorrect.
-    """
-    if len(swift_code) != SWIFT_CODE_LEN:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"SWIFT code should consist of {SWIFT_CODE_LEN} characters.",
-        )
-
-    if not swift_code.isupper():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="All characters in SWIFT code should be uppercase.",
-        )
-
-
-def check_country_iso2_code_correctness(country_iso2_code: str):
-    """Checks if the provided string has 2 uppercase characters.
-
-    Parameters
-    ----------
-    country_iso2_code : str
-        String to be checked for correctness.
-
-    Raises
-    ------
-    HTTPException
-        Unprocessable entity (422) if the string is incorrect.
-    """
-    if len(country_iso2_code) != ISO2_LEN:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"ISO2 code should consist of {ISO2_LEN} characters.",
-        )
-
-    if not country_iso2_code.isupper():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="All characters in ISO2 code should be uppercase.",
-        )
-
-
-def check_country_name_correctness(country_name: str):
-    """Checks if the provided string is uppercase.
-
-    Parameters
-    ----------
-    country_name : str
-        String to be checked for correctness.
-
-    Raises
-    ------
-    HTTPException
-        Unprocessable entity (422) if the string is not uppercase.
-    """
-    if not country_name.isupper():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="All characters in country name should be uppercase.",
-        )
-
-
-def check_if_exists_in_db(obj: Bank | Country):
-    """Checks if the given object exists.
-
-    Parameters
-    ----------
-    obj : Bank | Country
-        Bank or Country object to be checked.
-
-    Raises
-    ------
-    HTTPException
-        Not found (404) if the object does not exist.
-    """
-    if not obj:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item does not exist.",
-        )
-
-
 @app.get(
     "/v1/swift-codes/{swift_code}",
     status_code=status.HTTP_200_OK,
-    response_model=Union[BankWithBranches, BankWithoutBranches],
+    response_model=Union[BankHeadquarter, BankBranch],
 )
 def read_bank(*, session: Session = Depends(get_session), swift_code: str):
     """Gets information about the bank with the specified SWIFT code.
@@ -223,7 +72,7 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
 
     Returns
     -------
-    BankWithBranches or BankWithoutBranches
+    BankHeadquarter or BankBranch
         Bank information with branches if headquarter, otherwise without branches.
 
     Raises
@@ -237,9 +86,9 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
     check_if_exists_in_db(bank)
 
     if bank.is_headquarter:
-        return BankWithBranches.from_bank(bank)
+        return BankHeadquarter.from_bank(bank)
     else:
-        return BankWithoutBranches.from_bank(bank)
+        return BankBranch.from_bank(bank)
 
 
 @app.get(
@@ -305,6 +154,16 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
     check_country_name_correctness(bank_create.countryName)
     check_swift_code_correctness(bank_create.swiftCode)
 
+    last_three_symbols_in_swift = bank_create.swiftCode[-3:]
+
+    if (last_three_symbols_in_swift == "XXX" and not bank_create.isHeadquarter) or (
+        last_three_symbols_in_swift != "XXX" and bank_create.isHeadquarter
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+        )
+
     country = session.exec(
         select(Country).where(Country.iso2 == bank_create.countryISO2)
     ).first()
@@ -332,8 +191,31 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
         country=country,
     )
 
-    session.add(bank)
-    session.commit()
+    if bank_create.isHeadquarter:
+        bank.branches = session.exec(
+            select(Bank).where(
+                Bank.swift_code.like(
+                    bank_create.swiftCode[:8] + "___"
+                )  # This is a workaround for a lack of LIKE support in the current version of SQLModel
+                # like() from SQLAlchemy is used (causes linting error)
+            )
+        ).all()
+
+    else:
+        bank.headquarter = session.exec(
+            select(Bank).where(Bank.swift_code == bank_create.swiftCode[:8] + "XXX")
+        ).first()
+
+    try:
+        session.add(bank)
+        session.commit()
+    except IntegrityError as e:
+        session.rollback()
+        if "UNIQUE constraint failed" in str(e.orig):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{e.orig}",
+            ) from e
 
     # TODO: adjust so it is properly presented in /docs
     return JSONResponse(

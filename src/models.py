@@ -32,10 +32,8 @@ class Bank(SQLModel, table=True):
     )
 
 
-class BankWithoutBranches(SQLModel):
-    """Object model for the bank used when describing branches of a headquarter
-    or banks from a given country.
-    """
+class BankWithoutCountryName(SQLModel):
+    """Object model for the bank used in a list of headquarter's branches or country's banks."""
 
     address: str
     bankName: str
@@ -45,7 +43,7 @@ class BankWithoutBranches(SQLModel):
 
     @classmethod
     def from_bank(cls, bank: Bank):
-        """Creates object of BankWithoutBranches based on the Bank object.
+        """Creates object of BankWithoutCountryName based on the Bank object.
 
         Parameters
         ----------
@@ -54,8 +52,8 @@ class BankWithoutBranches(SQLModel):
 
         Returns
         -------
-        BankWithoutBranches
-            New object of the BankWithoutBranches class.
+        BankWithoutCountryName
+            New object of the BankWithoutCountryName class.
         """
         return cls(
             address=bank.address,
@@ -66,10 +64,17 @@ class BankWithoutBranches(SQLModel):
         )
 
 
-class BankCreate(BankWithoutBranches):
-    """Object model for the bank used when creating new banks or describing branches directly."""
+# This model could simply inherit from BankWithoutCountryName.
+# It is defined in this way to excatly match JSON properties' order described in requirements.
+class BankCreate(SQLModel):
+    """Object model for the bank used when creating new banks."""
 
-    countryName: str  # TODO: change order of fields returned by SQLModel
+    address: str
+    bankName: str
+    countryISO2: str = Field(min_length=ISO2_LEN, max_length=ISO2_LEN)
+    countryName: str
+    isHeadquarter: bool
+    swiftCode: str = Field(min_length=SWIFT_CODE_LEN, max_length=SWIFT_CODE_LEN)
 
     @classmethod
     def from_bank(cls, bank: Bank):
@@ -85,18 +90,28 @@ class BankCreate(BankWithoutBranches):
         BankCreate
             New object of the BankCreate class.
         """
-        base = BankWithoutBranches.from_bank(bank)
-        return cls(**base.model_dump(), countryName=bank.country.name)
+        return cls(
+            address=bank.address,
+            bankName=bank.name,
+            countryISO2=bank.country.iso2,
+            countryName=bank.country.name,
+            isHeadquarter=bank.is_headquarter,
+            swiftCode=bank.swift_code,
+        )
 
 
-class BankWithBranches(BankCreate):
+class BankBranch(BankCreate):
+    """Object model for the bank used when describing a branch directly."""
+
+
+class BankHeadquarter(BankCreate):
     """Object model for the bank used when describing a headquarter."""
 
-    branches: list[BankWithoutBranches]
+    branches: list[BankWithoutCountryName]
 
     @classmethod
     def from_bank(cls, bank: Bank):
-        """Creates object of BankWithBranches based on the Bank object.
+        """Creates object of BankHeadquarter based on the Bank object.
 
         Parameters
         ----------
@@ -105,11 +120,11 @@ class BankWithBranches(BankCreate):
 
         Returns
         -------
-        BankWithBranches
-            New object of the BankWithBranches class.
+        BankHeadquarter
+            New object of the BankHeadquarter class.
         """
         base = BankCreate.from_bank(bank)
-        branches = [BankWithoutBranches.from_bank(b) for b in bank.branches]
+        branches = [BankWithoutCountryName.from_bank(b) for b in bank.branches]
         return cls(**base.model_dump(), branches=branches)
 
 
@@ -127,7 +142,7 @@ class CountryWithBanks(SQLModel):
 
     countryISO2: str
     countryName: str
-    swiftCodes: list[BankWithoutBranches]
+    swiftCodes: list[BankWithoutCountryName]
 
     @classmethod
     def from_country(cls, country: Country):
@@ -143,7 +158,7 @@ class CountryWithBanks(SQLModel):
         CountryWithBanks
             New object of the CountryWithBanks class.
         """
-        swift_codes = [BankWithoutBranches.from_bank(b) for b in country.banks]
+        swift_codes = [BankWithoutCountryName.from_bank(b) for b in country.banks]
         return cls(
             countryISO2=country.iso2, countryName=country.name, swiftCodes=swift_codes
         )
