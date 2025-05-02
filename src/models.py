@@ -2,7 +2,7 @@
 
 from sqlmodel import Field, Relationship, SQLModel
 
-ISO2_LEN = 2
+ISO2_CODE_LEN = 2
 SWIFT_CODE_LEN = 11
 
 
@@ -37,7 +37,7 @@ class BankWithoutCountryName(SQLModel):
 
     address: str
     bankName: str
-    countryISO2: str = Field(min_length=ISO2_LEN, max_length=ISO2_LEN)
+    countryISO2: str = Field(min_length=ISO2_CODE_LEN, max_length=ISO2_CODE_LEN)
     isHeadquarter: bool
     swiftCode: str = Field(min_length=SWIFT_CODE_LEN, max_length=SWIFT_CODE_LEN)
 
@@ -71,7 +71,7 @@ class BankCreate(SQLModel):
 
     address: str
     bankName: str
-    countryISO2: str = Field(min_length=ISO2_LEN, max_length=ISO2_LEN)
+    countryISO2: str = Field(min_length=ISO2_CODE_LEN, max_length=ISO2_CODE_LEN)
     countryName: str
     isHeadquarter: bool
     swiftCode: str = Field(min_length=SWIFT_CODE_LEN, max_length=SWIFT_CODE_LEN)
@@ -132,7 +132,7 @@ class Country(SQLModel, table=True):
     """Table model for the country."""
 
     id: int | None = Field(default=None, primary_key=True)
-    iso2: str = Field(min_length=ISO2_LEN, max_length=ISO2_LEN, index=True, unique=True)
+    iso2: str = Field(min_length=ISO2_CODE_LEN, max_length=ISO2_CODE_LEN, index=True, unique=True)
     name: str
     banks: list["Bank"] = Relationship(back_populates="country")
 

@@ -7,7 +7,7 @@ from typing import Union
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.responses import JSONResponse
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlmodel import Session, select
 
 from .database import create_db_and_tables, engine
@@ -23,10 +23,9 @@ from .models import (
 from .utils import (
     create_banks,
     create_countries,
-    check_country_iso2_code_correctness,
-    check_country_name_correctness,
+    check_code_length,
     check_if_exists_in_db,
-    check_swift_code_correctness,
+    check_if_upper,
     get_session,
 )
 
@@ -81,7 +80,8 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
         Unprocessable entity (422) if the SWIFT code is incorrect.
         Not found (404) if a bank with a given SWIFT code does not exist in the database.
     """
-    check_swift_code_correctness(swift_code)
+    check_code_length(code=swift_code, code_type="SWIFT")
+    check_if_upper(text=swift_code, text_type="SWIFT code")
     bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
     check_if_exists_in_db(bank)
 
@@ -117,7 +117,8 @@ def read_country(*, session: Session = Depends(get_session), country_iso2_code: 
         Unprocessable entity (422) if the country ISO2 code is incorrect.
         Not found (404) if a country with a given ISO2 code does not exist in the database.
     """
-    check_country_iso2_code_correctness(country_iso2_code)
+    check_code_length(code=country_iso2_code, code_type="ISO2")
+    check_if_upper(text=country_iso2_code, text_type="ISO2 code")
     country = session.exec(
         select(Country).where(Country.iso2 == country_iso2_code)
     ).first()
@@ -150,9 +151,10 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
         Unprocessable entity (422) if the bank SWIFT code is incorrect.
         Conflict (409) if provided country name is different from the one in the database.
     """
-    check_country_iso2_code_correctness(bank_create.countryISO2)
-    check_country_name_correctness(bank_create.countryName)
-    check_swift_code_correctness(bank_create.swiftCode)
+    # code length checks are managed by SQLModel (no additional check needed)
+    check_if_upper(text=bank_create.swiftCode, text_type="SWIFT code")
+    check_if_upper(text=bank_create.countryISO2, text_type="ISO2 code")
+    check_if_upper(text=bank_create.countryName, text_type="country name")
 
     last_three_symbols_in_swift = bank_create.swiftCode[-3:]
 
@@ -168,17 +170,32 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
         select(Country).where(Country.iso2 == bank_create.countryISO2)
     ).first()
 
-    if not Country:  # new countries are created when needed
+    if not country:  # new countries are created when needed
         country = Country(iso2=bank_create.countryISO2, name=bank_create.countryName)
-        session.add(country)
-        session.commit()
-        session.refresh(country)
+        try:
+            session.add(country)
+            session.commit()
+            session.refresh(country)
+        except IntegrityError as e:
+            session.rollback()
+            if "UNIQUE constraint failed" in str(e.orig):
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=f"{e.orig}",
+                ) from e
+        except OperationalError as e:
+            session.rollback()
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error.",
+            ) from e
+
     else:
         if country.name != bank_create.countryName:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail=(
-                    "In our database the countryName for countryISO2 ="
+                    "In the database the correct countryName for countryISO2 ="
                     + f" {country.iso2} is {country.name}."
                 ),
             )
@@ -196,8 +213,8 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
             select(Bank).where(
                 Bank.swift_code.like(
                     bank_create.swiftCode[:8] + "___"
-                )  # This is a workaround for a lack of LIKE support in the current version of SQLModel
-                # like() from SQLAlchemy is used (causes linting error)
+                )  # like() from SQLAlchemy is used (causes linting error)
+                # This is a workaround for a lack of LIKE support in the current version of SQLModel
             )
         ).all()
 
@@ -216,8 +233,12 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
                 status_code=status.HTTP_409_CONFLICT,
                 detail=f"{e.orig}",
             ) from e
+    except OperationalError as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error."
+        ) from e
 
-    # TODO: adjust so it is properly presented in /docs
     return JSONResponse(
         content={
             "message": f"SWIFT CODE = {bank_create.swiftCode} successfully create."
@@ -247,12 +268,26 @@ def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
         Unprocessable entity (422) if the SWIFT code is incorrect.
         Not found (404) if a bank with a given SWIFT code does not exist in the database.
     """
-    check_swift_code_correctness(swift_code)
+    check_code_length(code=swift_code, code_type="SWIFT")
+    check_if_upper(text=swift_code, text_type="SWIFT code")
     bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
     check_if_exists_in_db(bank)
     deleted_swift_code = bank.swift_code
-    session.delete(bank)
-    session.commit()
+    try:
+        session.delete(bank)
+        session.commit()
+    except IntegrityError as e:
+        session.rollback()
+        if "UNIQUE constraint failed" in str(e.orig):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{e.orig}",
+            ) from e
+    except OperationalError as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Database error."
+        ) from e
     return JSONResponse(
         content={"message": f"SWIFT CODE = {deleted_swift_code} successfully deleted."}
     )

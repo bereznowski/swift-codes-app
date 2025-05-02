@@ -1,3 +1,6 @@
+"""This module gathers helper functions."""
+from typing import Literal
+
 from fastapi import HTTPException, status
 from sqlmodel import Session, select
 
@@ -7,7 +10,7 @@ from .models import (
     Bank,
     Country,
     SWIFT_CODE_LEN,
-    ISO2_LEN,
+    ISO2_CODE_LEN,
 )
 
 
@@ -78,75 +81,56 @@ def create_countries(*, session: Session, countries_data: list[dict]):
     session.commit()
 
 
-def check_swift_code_correctness(swift_code: str):
-    """Checks if the provided string has 11 uppercase characters.
+def check_code_length(code: str, code_type=Literal["SWIFT", "ISO2"]):
+    """Checks if the provided code has correct lenght (11 for SWIFT, 2 for country ISO2).
 
     Parameters
     ----------
-    swift_code : str
-        String to be checked for correctness.
+    code : str
+        Code to be checked
+    code_type : str {"SWIFT", "ISO2"}
+        Type of code to be checked.
 
     Raises
     ------
     HTTPException
-        Unprocessable entity (422) if the string is incorrect.
+        Unprocessable entity (422) if the code length is incorrect.
     """
-    if len(swift_code) != SWIFT_CODE_LEN:
+    length = SWIFT_CODE_LEN
+    length_condition = len(code) != SWIFT_CODE_LEN
+
+    if code_type == "ISO2":
+        length = ISO2_CODE_LEN
+        length_condition = len(code) != ISO2_CODE_LEN
+
+    if length_condition:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"SWIFT code should consist of {SWIFT_CODE_LEN} characters.",
-        )
-
-    if not swift_code.isupper():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="All characters in SWIFT code should be uppercase.",
+            detail=f"{code_type} code should consist of {length} characters.",
         )
 
 
-def check_country_iso2_code_correctness(country_iso2_code: str):
-    """Checks if the provided string has 2 uppercase characters.
+def check_if_upper(
+    text: str, text_type=Literal["SWIFT code", "ISO2 code", "country name"]
+):
+    """Checks if the provided text is uppercase.
 
     Parameters
     ----------
-    country_iso2_code : str
-        String to be checked for correctness.
+    text : str
+        text to be checked
+    text_type : str {"SWIFT code", "ISO2 code", "country name"}
+        Type of text to be checked.
 
     Raises
     ------
     HTTPException
-        Unprocessable entity (422) if the string is incorrect.
+        Unprocessable entity (422) if the text is not uppercase.
     """
-    if len(country_iso2_code) != ISO2_LEN:  # TODO: simplify exception handling
+    if not text.isupper():
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"ISO2 code should consist of {ISO2_LEN} characters.",
-        )
-
-    if not country_iso2_code.isupper():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="All characters in ISO2 code should be uppercase.",
-        )
-
-
-def check_country_name_correctness(country_name: str):
-    """Checks if the provided string is uppercase.
-
-    Parameters
-    ----------
-    country_name : str
-        String to be checked for correctness.
-
-    Raises
-    ------
-    HTTPException
-        Unprocessable entity (422) if the string is not uppercase.
-    """
-    if not country_name.isupper():
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="All characters in country name should be uppercase.",
+            detail=f"All characters in {text_type} should be uppercase.",
         )
 
 
