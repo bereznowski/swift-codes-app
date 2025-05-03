@@ -24,7 +24,10 @@ from .utils import (
     create_banks,
     create_countries,
     check_code_length,
+    check_if_alpha,
+    check_if_alphanumeric,
     check_if_exists_in_db,
+    check_if_proper_headquarter_or_branch,
     check_if_upper,
     get_session,
 )
@@ -77,9 +80,10 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
     Raises
     ------
     HTTPException
-        Unprocessable entity (422) if the SWIFT code is incorrect.
         Not found (404) if a bank with a given SWIFT code does not exist in the database.
+        Unprocessable entity (422) if the SWIFT code is incorrect.
     """
+    check_if_alphanumeric(code=swift_code)
     check_code_length(code=swift_code, code_type="SWIFT")
     check_if_upper(text=swift_code, text_type="SWIFT code")
     bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
@@ -114,9 +118,10 @@ def read_country(*, session: Session = Depends(get_session), country_iso2_code: 
     Raises
     ------
     HTTPException
-        Unprocessable entity (422) if the country ISO2 code is incorrect.
         Not found (404) if a country with a given ISO2 code does not exist in the database.
+        Unprocessable entity (422) if the country ISO2 code is incorrect.  # TODO: move raises to possible return values
     """
+    check_if_alpha(code=country_iso2_code)
     check_code_length(code=country_iso2_code, code_type="ISO2")
     check_if_upper(text=country_iso2_code, text_type="ISO2 code")
     country = session.exec(
@@ -146,25 +151,23 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
     Raises
     ------
     HTTPException
+        Conflict (409) if provided country name is different from the one in the database.
+        Conflict (409) if SWIFT code uniqueness is violated.
+        Conflict (409) if any other integrity error occurs.
+        Unprocessable entity (422) if the bank SWIFT code is incorrect.
         Unprocessable entity (422) if the country ISO2 code is incorrect.
         Unprocessable entity (422) if the country name is not uppercase.
-        Unprocessable entity (422) if the bank SWIFT code is incorrect.
-        Conflict (409) if provided country name is different from the one in the database.
+        Internal server error (500) if database error.
     """
     # code length checks are managed by SQLModel (no additional check needed)
+    check_if_alpha(code=bank_create.countryISO2)
+    check_if_alphanumeric(code=bank_create.swiftCode)
     check_if_upper(text=bank_create.swiftCode, text_type="SWIFT code")
     check_if_upper(text=bank_create.countryISO2, text_type="ISO2 code")
     check_if_upper(text=bank_create.countryName, text_type="country name")
-
-    last_three_symbols_in_swift = bank_create.swiftCode[-3:]
-
-    if (last_three_symbols_in_swift == "XXX" and not bank_create.isHeadquarter) or (
-        last_three_symbols_in_swift != "XXX" and bank_create.isHeadquarter
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
-        )
+    check_if_proper_headquarter_or_branch(
+        swift_code=bank_create.swiftCode, is_headquarter=bank_create.isHeadquarter
+    )
 
     country = session.exec(
         select(Country).where(Country.iso2 == bank_create.countryISO2)
@@ -178,11 +181,10 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
             session.refresh(country)
         except IntegrityError as e:
             session.rollback()
-            if "UNIQUE constraint failed" in str(e.orig):
-                raise HTTPException(
-                    status_code=status.HTTP_409_CONFLICT,
-                    detail=f"{e.orig}",
-                ) from e
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"{e.orig}",
+            ) from e # TODO: remove?
         except OperationalError as e:
             session.rollback()
             raise HTTPException(
@@ -190,7 +192,7 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
                 detail="Database error.",
             ) from e
 
-    else:
+    else:  # country already existed in the database
         if country.name != bank_create.countryName:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -241,12 +243,12 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
 
     return JSONResponse(
         content={
-            "message": f"SWIFT CODE = {bank_create.swiftCode} successfully create."
+            "message": f"SWIFT CODE = {bank_create.swiftCode} successfully created."
         }
     )
 
 
-@app.delete("/v1/swift-codes/{swift_code}", status_code=status.HTTP_204_NO_CONTENT)
+@app.delete("/v1/swift-codes/{swift_code}", status_code=status.HTTP_200_OK)
 def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
     """Deletes the bank with the given SWIFT code from the database
 
@@ -265,9 +267,12 @@ def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
     Raises
     ------
     HTTPException
-        Unprocessable entity (422) if the SWIFT code is incorrect.
         Not found (404) if a bank with a given SWIFT code does not exist in the database.
+        Conflict (409) if database integrity is violated.
+        Unprocessable entity (422) if the SWIFT code is incorrect.
+        Internal server error (500) if database error.
     """
+    check_if_alphanumeric(code=swift_code)
     check_code_length(code=swift_code, code_type="SWIFT")
     check_if_upper(text=swift_code, text_type="SWIFT code")
     bank = session.exec(select(Bank).where(Bank.swift_code == swift_code)).first()
@@ -278,11 +283,10 @@ def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
         session.commit()
     except IntegrityError as e:
         session.rollback()
-        if "UNIQUE constraint failed" in str(e.orig):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"{e.orig}",
-            ) from e
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"{e.orig}",
+        ) from e
     except OperationalError as e:
         session.rollback()
         raise HTTPException(

@@ -1,4 +1,5 @@
 """This module gathers helper functions."""
+
 from typing import Literal
 
 from fastapi import HTTPException, status
@@ -96,17 +97,57 @@ def check_code_length(code: str, code_type=Literal["SWIFT", "ISO2"]):
     HTTPException
         Unprocessable entity (422) if the code length is incorrect.
     """
-    length = SWIFT_CODE_LEN
-    length_condition = len(code) != SWIFT_CODE_LEN
-
-    if code_type == "ISO2":
-        length = ISO2_CODE_LEN
-        length_condition = len(code) != ISO2_CODE_LEN
+    length = SWIFT_CODE_LEN if code_type == "SWIFT" else ISO2_CODE_LEN
+    length_condition = (
+        len(code) != SWIFT_CODE_LEN
+        if code_type == "SWIFT"
+        else len(code) != ISO2_CODE_LEN
+    )
 
     if length_condition:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"{code_type} code should consist of {length} characters.",
+        )
+
+
+def check_if_alpha(code: str):
+    """Checks if the provided text contains only letters.
+
+    Parameters
+    ----------
+    code : str
+        code to be checked
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the text does not consists of only letters.
+    """
+    if not code.isalpha():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="All characters in ISO2 code should be letters.",
+        )
+
+
+def check_if_alphanumeric(code: str):
+    """Checks if the provided text is alphanumeric.
+
+    Parameters
+    ----------
+    code : str
+        code to be checked
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if the text is not alphanumeric.
+    """
+    if not code.isalnum():
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="All characters in SWIFT code should be alphanumeric.",
         )
 
 
@@ -151,4 +192,33 @@ def check_if_exists_in_db(obj: Bank | Country):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Item does not exist.",
+        )
+
+
+def check_if_proper_headquarter_or_branch(swift_code: str, is_headquarter: bool):
+    """Checks if SWIFT code match information about being headquarter.
+
+    SWIFT codes ending with XXX should be headquarters.
+    Branches should not end with XXX.
+
+    Parameters
+    ----------
+    swift_code : str
+        SWIFT code of the bank.
+    is_headquarter : bool
+        Information whether it is a headquarter or not.
+
+    Raises
+    ------
+    HTTPException
+        Unprocessable entity (422) if information in SWIFT code and about being headquarter differ.
+    """
+    last_three_symbols_in_swift = swift_code[-3:]
+
+    if (last_three_symbols_in_swift == "XXX" and not is_headquarter) or (
+        last_three_symbols_in_swift != "XXX" and is_headquarter
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
         )

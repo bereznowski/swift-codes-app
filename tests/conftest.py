@@ -7,6 +7,91 @@ from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
 
+@pytest.fixture(name="banks_data")
+def fixture_banks_data():
+    """Exemplary banks data inserted into the database.
+
+    The data includes following cases:
+    - headquarter with branches (1 or many branches),
+    - headquarter without branches,
+    - branch without headquarter,
+    - many banks from different countries,
+    - many banks from the same country,
+    - empty address field.
+
+    Returns
+    -------
+    list[dict]
+        List of dicts representing banks.
+    """
+    return [
+        {
+            "swift_code": "A1234567XXX",
+            "name": "Alior Bank",
+            "address": "Alior Bank Address",
+            "is_headquarter": True,
+            "country_iso2": "PL",
+            "headquarter": None,
+        },
+        {
+            "swift_code": "D1234567XXX",
+            "name": "Deutsche Bank",
+            "address": "Deutsche Bank Address",
+            "is_headquarter": True,
+            "country_iso2": "DE",
+            "headquarter": None,
+        },
+        {
+            "swift_code": "P1234567XXX",
+            "name": "PKO Bank",
+            "address": "PKO Bank Address",
+            "is_headquarter": True,
+            "country_iso2": "PL",
+            "headquarter": None,
+        },
+        {
+            "swift_code": "A0987654321",
+            "name": "Alior Bank",
+            "address": " ",
+            "is_headquarter": False,
+            "country_iso2": "PL",
+            "headquarter": None,
+        },
+        {
+            "swift_code": "A1234567890",
+            "name": "Alior Bank",
+            "address": "Alior Bank Address",
+            "is_headquarter": False,
+            "country_iso2": "PL",
+            "headquarter": "A1234567XXX",
+        },
+        {
+            "swift_code": "A1234567891",
+            "name": "Alior Bank",
+            "address": "Alior Bank Address",
+            "is_headquarter": False,
+            "country_iso2": "PL",
+            "headquarter": "A1234567XXX",
+        },
+        {
+            "swift_code": "C1234567890",
+            "name": "Commerzbank",
+            "address": "",
+            "is_headquarter": False,
+            "country_iso2": "DE",
+            "headquarter": "C1234567XXX",
+        },
+        {
+            "swift_code": "D1234567890",
+            "name": "Deutsche Bank",
+            "address": "Deutsche Bank Address",
+            "is_headquarter": False,
+            "country_iso2": "DE",
+            "headquarter": "D1234567XXX",
+        },
+    ]
+
+
 @pytest.fixture(name="banks_data_after_excel")
 def fixture_banks_data_after_excel():
     """Expected result of extracting banks data.
@@ -93,7 +178,7 @@ def fixture_countries_data_after_excel():
     list[dict]
         List of dicts representing countries.
     """
-    return [{"iso2": "DE", "name": "Germany"}, {"iso2": "PL", "name": "Poland"}]
+    return [{"iso2": "DE", "name": "GERMANY"}, {"iso2": "PL", "name": "POLAND"}]
 
 
 @pytest.fixture(name="mock_df")
@@ -147,14 +232,14 @@ def fixture_mock_df():
                 "",  # empty address
             ],
             "COUNTRY NAME": [
-                "Poland",
-                "Poland",
-                "Poland",
-                "Poland",
-                "Germany",
-                "Germany",
-                "Poland",
-                "Germany",
+                "POLAND",
+                "POLAND",
+                "POLAND",
+                "POLAND",
+                "GERMANY",
+                "GERMANY",
+                "POLAND",
+                "GERMANY",
             ],
         }
     )

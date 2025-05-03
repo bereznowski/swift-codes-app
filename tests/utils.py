@@ -1,7 +1,101 @@
 """This module includes helper functions used by more than one module."""
 
+from typing import Callable, Literal
+
 from sqlmodel import select
+from starlette.responses import Response
+
 from src.models import Bank, Country
+
+
+def check_if_expected_banks_in_list(request_banks: list[dict], expected_banks: dict):
+    """Checks if expected banks are on the list of headquarter's branches or country's banks.
+
+    Parameters
+    ----------
+    request_banks : list[dict]
+        List of banks returned as part of a get request.
+    expected_banks : dict[str, dict[str, str | bool]]
+        Dict showing expected values of expected banks
+    """
+    for _, expected_bank in expected_banks.items():
+        banks = request_banks
+
+        found_expected_bank = False
+
+        for bank in banks:
+            if bank["swiftCode"] == expected_bank["swiftCode"]:
+                found_expected_bank = True
+
+                keys = [
+                    "address",
+                    "bankName",
+                    "countryISO2",
+                    "isHeadquarter",
+                    "swiftCode",
+                ]
+
+                for key in keys:
+                    assert bank[key] == expected_bank[key], f"Bank {key} is different"
+                break
+
+        assert found_expected_bank, "Did not found all expected banks"
+
+
+def check_bank_data_correctness(request_result: dict, expected_result: dict):
+    """Checks correctness of bank data received via request.
+
+    Parameters
+    ----------
+    request_result : dict
+        Dict showing banks values received from request.
+    expected_result : dict[str, dict[str, str | bool]]
+        Dict showing expected values for banks.
+    """
+    for key in [
+        "address",
+        "bankName",
+        "countryISO2",
+        "countryName",
+        "isHeadquarter",
+        "swiftCode",
+    ]:
+        assert request_result[key] == expected_result[key], f"{key} is different"
+
+    if not expected_result["isHeadquarter"]:
+        assert request_result.get("branches") is expected_result.get(
+            "branches"
+        ), "No branches were expected"
+    else:
+        assert (
+            len(request_result["branches"]) == expected_result["branches_len"]
+        ), "Different number of branches expected"
+
+        check_if_expected_banks_in_list(
+            request_banks=request_result["branches"],
+            expected_banks=expected_result["branches"],
+        )
+
+
+def check_country_data_correctness(request_result: dict, expected_result: dict):
+    """Checks correctness of country data received via request.
+
+    Parameters
+    ----------
+    request_result : dict
+        Dict showing countries values received from request.
+    expected_result : dict[str, dict[str, str | bool]]
+        Dict showing expected values for countries.
+    """
+    keys = ["countryISO2", "countryName"]
+
+    for key in keys:
+        assert request_result[key] == expected_result[key], f"{key} codes are different"
+
+    check_if_expected_banks_in_list(
+        request_banks=request_result["swiftCodes"],
+        expected_banks=expected_result["swiftCodes"],
+    )
 
 
 def get_banks(session):
@@ -59,6 +153,146 @@ def get_countries(session):
     poland = session.exec(select(Country).where(Country.iso2 == "PL")).one()
 
     return (germany, poland)
+
+
+def insert_exemplary_datainto_db(session, banks_data, countries_data_after_excel):
+    """Inserts exemplary data into the database.
+
+    Parameters
+    ----------
+    session : sqlmodel.Session
+        SQLModel Session used to interact with in-memory database.
+    banks_data : list[dict]
+        List of dicts used for creating table models of banks.
+    countries_data_after_excel : list[dict]
+        List of dicts used for creating table models of countries.
+    """
+    for country_data in countries_data_after_excel:
+        country = Country(iso2=country_data["iso2"], name=country_data["name"])
+        session.add(country)
+        session.commit()
+
+    for bank_data in banks_data:
+        country = session.exec(
+            select(Country).where(Country.iso2 == bank_data["country_iso2"])
+        ).first()
+        headquarter = session.exec(
+            select(Bank).where(Bank.swift_code == bank_data["headquarter"])
+        ).first()
+
+        bank = Bank(
+            swift_code=bank_data["swift_code"],
+            name=bank_data["name"],
+            address=bank_data["address"],
+            is_headquarter=bank_data["is_headquarter"],
+            country_id=country.id if country is not None else None,
+            headquarter_id=headquarter.id if headquarter is not None else None,
+        )
+
+        session.add(bank)
+        session.commit()
+
+
+def diff_between_codes(code_type: Literal["SWIFT", "ISO2"]):
+    """Helper function for differentiating between SWIFT and ISO2 codes.
+
+    Parameters
+    ----------
+    code_type : str {"SWIFT", "ISO2"}
+        Type of the code.
+
+    Returns
+    ----------
+    info_incorrect_len: string
+        Expected error message for code of incorrect length.
+    info_incorrect_upper : string
+        Expected error message for code of incorrect uppercase.
+    info_special_characters : string
+        Expected error message for code with special characters.
+    """
+    code_len = 11 if code_type == "SWIFT" else 2
+    type_of_characters = "alphanumeric" if code_type == "SWIFT" else "letters"
+
+    info_incorrect_len = f"{code_type} code should consist of {code_len} characters."
+    info_incorrect_upper = f"All characters in {code_type} code should be uppercase."
+    info_special_characters = (
+        f"All characters in {code_type} code should be {type_of_characters}."
+    )
+
+    return info_incorrect_len, info_incorrect_upper, info_special_characters
+
+
+def send_request_with_incorrect_code(
+    code_type: Literal["SWIFT", "ISO2"],
+    request_path: str,
+    client_request: Callable[..., Response],
+):
+    """Sends requests with incorrect SWIFT/ISO2 codes.
+
+    Parameters
+    ----------
+    code_type : str {"SWIFT", "ISO2"}
+        Type of code to be checked.
+    request_path : str
+        Path for which the request is send.
+    client_request : Callable
+        Request send by FastAPI client.
+    """
+    info_incorrect_len, info_incorrect_upper, info_special_characters = (
+        diff_between_codes(code_type)
+    )
+
+    wrong_codes = [  # SWIFT
+        {"SWIFT": "wrongswiftcode", "message": info_incorrect_len},
+        {"SWIFT": "WRONGSWIFTCODE", "message": info_incorrect_len},
+        {"SWIFT": "fafaniifjkk", "message": info_incorrect_upper},
+        {"SWIFT": "FNDKOSHEIk1", "message": info_incorrect_upper},
+        {"SWIFT": "!@#$%^&*()P", "message": info_special_characters},
+        {"SWIFT": "%NDKOSHEXXX", "message": info_special_characters},
+    ]
+
+    if code_type == "ISO2":
+        wrong_codes = [
+            {"ISO2": "wrongcode", "message": info_incorrect_len},
+            {"ISO2": "WRONGCODE", "message": info_incorrect_len},
+            {"ISO2": "fd", "message": info_incorrect_upper},
+            {"ISO2": "ff", "message": info_incorrect_upper},
+            {"ISO2": "!@", "message": info_special_characters},
+            {"ISO2": "%N", "message": info_special_characters},
+        ]
+
+    for example in wrong_codes:
+        request = client_request(request_path + example[code_type])
+        data = request.json()
+
+        assert data["detail"] == example["message"], "Response is incorrect."
+
+
+def send_request_with_nonexisting_code(
+    code_type: Literal["SWIFT", "ISO2"],
+    request_path: str,
+    client_request: Callable[..., Response],
+):
+    """Sends requests with nonexisting SWIFT/ISO2 codes.
+
+    Parameters
+    ----------
+    code_type : str {"SWIFT", "ISO2"}
+        Type of code to be checked.
+    request_path : str
+        Path for which the request is send.
+    client_request : Callable
+        Request send by FastAPI client.
+    """
+    nonexisting_codes = (
+        ["WRONGSWIFT1", "WRONGSWIXXX"] if code_type == "SWIFT" else ["QW", "WR"]
+    )
+
+    for example in nonexisting_codes:
+        request = client_request(request_path + example)
+        data = request.json()
+
+        assert data["detail"] == "Item does not exist.", "Response is incorrect."
 
 
 def query_created_relationship_branches_headquarter(session):
