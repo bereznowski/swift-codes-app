@@ -35,7 +35,7 @@ from .utils import (
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Connects all parts of the application.
+    """Creates database and inserts data from the Excel file.
 
     Parameters
     ----------
