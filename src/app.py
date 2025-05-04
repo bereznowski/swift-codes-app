@@ -179,12 +179,6 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
             session.add(country)
             session.commit()
             session.refresh(country)
-        except IntegrityError as e:
-            session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail=f"{e.orig}",
-            ) from e # TODO: remove?
         except OperationalError as e:
             session.rollback()
             raise HTTPException(

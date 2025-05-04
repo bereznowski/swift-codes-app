@@ -4,7 +4,7 @@ from sqlmodel import select
 
 from src.models import Bank, Country
 from .utils import (
-    insert_exemplary_datainto_db,
+    insert_exemplary_data_into_db,
     query_created_relationship_branches_headquarter,
     query_created_relationship_banks_country,
 )
@@ -58,5 +58,5 @@ def test_relationship_banks_country(session, banks_data, countries_data_after_ex
     countries_data_after_excel : list[dict]
         List of dicts used for creating table models of countries.
     """
-    insert_exemplary_datainto_db(session, banks_data, countries_data_after_excel)
+    insert_exemplary_data_into_db(session, banks_data, countries_data_after_excel)
     query_created_relationship_banks_country(session)

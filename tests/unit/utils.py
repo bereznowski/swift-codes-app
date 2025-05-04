@@ -155,7 +155,7 @@ def get_countries(session):
     return (germany, poland)
 
 
-def insert_exemplary_datainto_db(session, banks_data, countries_data_after_excel):
+def insert_exemplary_data_into_db(session, banks_data, countries_data_after_excel):
     """Inserts exemplary data into the database.
 
     Parameters

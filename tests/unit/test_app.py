@@ -13,9 +13,10 @@ from src.utils import get_session
 from .utils import (
     check_bank_data_correctness,
     check_country_data_correctness,
+    diff_between_codes,
     get_banks,
     get_countries,
-    insert_exemplary_datainto_db,
+    insert_exemplary_data_into_db,
     send_request_with_incorrect_code,
 )
 
@@ -244,7 +245,7 @@ def test_read_bank_correct_data(
     expected_results_of_reading_banks : dict{dict}
         Dict of dicts presenting expected results of retrieving banks data.
     """
-    insert_exemplary_datainto_db(session, banks_data, countries_data_after_excel)
+    insert_exemplary_data_into_db(session, banks_data, countries_data_after_excel)
 
     for bank in banks_data:
         swift_code = bank["swift_code"]
@@ -312,7 +313,7 @@ def test_read_country_correct_data(
     expected_results_of_reading_countries : dict{dict}
         Dict of dicts presenting expected results of retrieving countries data.
     """
-    insert_exemplary_datainto_db(session, banks_data, countries_data_after_excel)
+    insert_exemplary_data_into_db(session, banks_data, countries_data_after_excel)
 
     for country in countries_data_after_excel:
         iso2_code = country["iso2"]
@@ -401,7 +402,8 @@ def test_create_bank_correct_data(
         assert response.status_code == status.HTTP_200_OK
 
     for _, expected_result in expected_results_of_reading_banks.items():
-        data = client.get(f"/v1/swift-codes/{expected_result['swiftCode']}").json()
+        response = client.get(f"/v1/swift-codes/{expected_result['swiftCode']}")
+        data = response.json()
 
         assert response.status_code == status.HTTP_200_OK
 
@@ -420,9 +422,181 @@ def test_create_bank_correct_data(
         )
 
 
-# TODO: test incorrect swiftcode, iso2, (includig isHeadquarter)
-# TODO: test conflict with country name
-# TODO: test unique constrain violation
+def test_create_bank_incorrect_bank_data(client: TestClient):
+    """Tests if correct responses are provided for incorrect data during bank creation.
+
+    Parameters
+    ----------
+    fastapi.TestClient
+        Test client used with in-memory database.
+    """
+    (
+        _,
+        iso2_info_incorrect_upper,
+        iso2_info_special_characters,
+    ) = diff_between_codes("ISO2")
+
+    (
+        _,
+        swift_info_incorrect_upper,
+        swift_info_special_characters,
+    ) = diff_between_codes("SWIFT")
+
+    
+
+    incorrect_requests = [
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "P#",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEEE",
+            },
+            "message": iso2_info_special_characters,
+        },
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "pl",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEEE",
+            },
+            "message": iso2_info_incorrect_upper,
+        },
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODE!@",
+            },
+            "message": swift_info_special_characters,
+        },
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODeee",
+            },
+            "message": swift_info_incorrect_upper,
+        },
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "Poland",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEEE",
+            },
+            "message": "All characters in country name should be uppercase.",
+        },
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODXXX",
+            },
+            "message": "Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+        },
+        {
+            "bank_data": {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": True,
+                "swiftCode": "SWIFTCODEEE",
+            },
+            "message": "Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+        },
+
+    ]
+
+    for incorrect_request in incorrect_requests:
+        response = client.post(
+                "/v1/swift-codes",
+                json=incorrect_request["bank_data"],
+            )
+        data = response.json()
+
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert data["detail"] == incorrect_request["message"]
+
+def test_create_bank_incorrect_contry_name(client: TestClient):
+    """Tests if correct response is provided for incorrect country name during bank creation.
+
+    Parameters
+    ----------
+    fastapi.TestClient
+        Test client used with in-memory database.
+    """
+    request1 = {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEE1",
+            }
+    request2 = {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLANDD",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEE2",
+            }
+
+
+    client.post("/v1/swift-codes", json=request1)
+    response = client.post("/v1/swift-codes", json=request2)
+    assert response.status_code == status.HTTP_409_CONFLICT, "Request should end with conflig (409)"
+    assert response.json()["detail"] == "In the database the correct countryName for countryISO2 = PL is POLAND.", "Detail should be different"
+
+def test_create_bank_unique_constraint_failed(client: TestClient):
+    """Tests if correct response is provided for unique constraint failed during bank creation.
+
+    Parameters
+    ----------
+    fastapi.TestClient
+        Test client used with in-memory database.
+    """
+    request1 = {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEEE",
+            }
+    request2 = {
+                "address": "valid address",
+                "bankName": "valid bank name",
+                "countryISO2": "PL",
+                "countryName": "POLAND",
+                "isHeadquarter": False,
+                "swiftCode": "SWIFTCODEEE",
+            }
+
+
+    client.post("/v1/swift-codes", json=request1)
+    response = client.post("/v1/swift-codes", json=request2)
+    assert response.status_code == status.HTTP_409_CONFLICT, "Request should end with conflig (409)"
+    assert response.json()["detail"] == "UNIQUE constraint failed: bank.swift_code", "Detail should be different"
+
 # TODO: create integration test from Excel to get, post, delete
 
 
@@ -442,7 +616,7 @@ def test_delete_bank_correct_data(
     countries_data_after_excel : list[dict]
         List of dicts used for creating table models of countries.
     """
-    insert_exemplary_datainto_db(session, banks_data, countries_data_after_excel)
+    insert_exemplary_data_into_db(session, banks_data, countries_data_after_excel)
 
     (
         deutsche_bank_branch,
