@@ -1,6 +1,6 @@
 # REST API for SWIFT codes
 
-This is a REST API developed in Python ([SQLModel](https://sqlmodel.tiangolo.com/) and [FastAPI](https://fastapi.tiangolo.com/)) based on the [requirements](task_requirements/task_requirements.docx).
+This is a REST API developed in Python ([SQLModel](https://sqlmodel.tiangolo.com/) and [FastAPI](https://fastapi.tiangolo.com/)) based on the [requirements](task_requirements/task_requirements.pdf).
 
 In order to run it, you should change your directory to `swift-codes-app`:
 
