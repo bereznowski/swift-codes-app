@@ -1,8 +1,15 @@
-"""This module includes unit tests for functions from src/app.py"""
+"""This module includes unit tests for functions from src/utils.py"""
 
+import pytest
+
+from fastapi import HTTPException
 from sqlmodel import Session, select
 
-from src.app import create_banks, create_countries
+from src.utils import (
+    check_if_proper_headquarter_or_branch,
+    create_banks,
+    create_countries,
+)
 from src.models import Bank, Country
 
 from .utils import (
@@ -58,3 +65,40 @@ def test_create_countries(session: Session, countries_data_after_excel: list[dic
     assert (
         len(session.exec(select(Country)).all()) == 2
     ), "There should be 2 countries in the database"
+
+
+def test_check_if_proper_headquarter_or_branch():
+    """Tests if headquarters and branches are properly recognized by SWIFT codes."""
+
+    correct_examples = [
+        {"swift_code": "AAAAAAAAXXX", "is_headquarter": True},
+        {"swift_code": "A1AXXXC4XXX", "is_headquarter": True},
+        {"swift_code": "CCCAAXXXXXX", "is_headquarter": True},
+        {"swift_code": "AAAAAAAA123", "is_headquarter": False},
+        {"swift_code": "XXXAAAAAAAA", "is_headquarter": False},
+        {"swift_code": "XXXXXXXX123", "is_headquarter": False},
+    ]
+
+    incorrect_examples = [
+        {"swift_code": "AAAAAAAAXXX", "is_headquarter": False},
+        {"swift_code": "A1AXXXC4XXX", "is_headquarter": False},
+        {"swift_code": "CCCAAXXXXXX", "is_headquarter": False},
+        {"swift_code": "AAAAAAAA123", "is_headquarter": True},
+        {"swift_code": "XXXAAAAAAAA", "is_headquarter": True},
+        {"swift_code": "XXXXXXXX123", "is_headquarter": True},
+    ]
+
+    for pair in correct_examples:
+        check_if_proper_headquarter_or_branch(
+            pair["swift_code"], pair["is_headquarter"]
+        )
+        assert True
+
+    for pair in incorrect_examples:
+        with pytest.raises(
+            HTTPException,
+            match="Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+        ):
+            check_if_proper_headquarter_or_branch(
+                pair["swift_code"], pair["is_headquarter"]
+            )
