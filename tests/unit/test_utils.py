@@ -89,9 +89,16 @@ def test_check_if_proper_headquarter_or_branch():  # TODO: split to two tests
     ]
 
     for pair in correct_examples:
-        check_if_proper_headquarter_or_branch(pair["swift_code"], pair["is_headquarter"])
+        check_if_proper_headquarter_or_branch(
+            pair["swift_code"], pair["is_headquarter"]
+        )
         assert True
 
     for pair in incorrect_examples:
-        with pytest.raises(HTTPException, match="Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX."):
-            check_if_proper_headquarter_or_branch(pair["swift_code"], pair["is_headquarter"])
+        with pytest.raises(
+            HTTPException,
+            match="Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+        ):
+            check_if_proper_headquarter_or_branch(
+                pair["swift_code"], pair["is_headquarter"]
+            )

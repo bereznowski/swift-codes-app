@@ -1,13 +1,8 @@
 """This module includes unit tests for functions from src/app.py"""
 
-import pytest
-
 from fastapi import status
 from fastapi.testclient import TestClient
 from sqlmodel import Session
-
-from src.app import app
-from src.utils import get_session
 
 
 from .utils import (
@@ -19,208 +14,6 @@ from .utils import (
     insert_exemplary_data_into_db,
     send_request_with_incorrect_code,
 )
-
-
-@pytest.fixture(name="client")
-def fixture_client(session: Session):
-    """Creates new FastAPI client for in-memory database.
-
-    Yields
-    -------
-    fastapi.TestClient
-        Test client used with in-memory database.
-    """
-
-    def get_session_override():
-        return session
-
-    app.dependency_overrides[get_session] = get_session_override
-
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
-
-
-@pytest.fixture(name="expected_results_of_reading_banks")
-def fixture_expected_results_of_reading_banks():
-    """Expected results of reading exemplary banks data from the database."""
-    return {
-        "A1234567XXX": {
-            "address": "Alior Bank Address",
-            "bankName": "Alior Bank",
-            "countryISO2": "PL",
-            "countryName": "POLAND",
-            "isHeadquarter": True,
-            "swiftCode": "A1234567XXX",
-            "branches": {
-                "A1234567890": {
-                    "address": "Alior Bank Address",
-                    "bankName": "Alior Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": False,
-                    "swiftCode": "A1234567890",
-                },
-                "A1234567891": {
-                    "address": "Alior Bank Address",
-                    "bankName": "Alior Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": False,
-                    "swiftCode": "A1234567891",
-                },
-            },
-            "branches_len": 2,
-        },
-        "D1234567XXX": {
-            "address": "Deutsche Bank Address",
-            "bankName": "Deutsche Bank",
-            "countryISO2": "DE",
-            "countryName": "GERMANY",
-            "isHeadquarter": True,
-            "swiftCode": "D1234567XXX",
-            "branches": {
-                "D1234567890": {
-                    "address": "Deutsche Bank Address",
-                    "bankName": "Deutsche Bank",
-                    "countryISO2": "DE",
-                    "isHeadquarter": False,
-                    "swiftCode": "D1234567890",
-                },
-            },
-            "branches_len": 1,
-        },
-        "P1234567XXX": {
-            "address": "PKO Bank Address",
-            "bankName": "PKO Bank",
-            "countryISO2": "PL",
-            "countryName": "POLAND",
-            "isHeadquarter": True,
-            "swiftCode": "P1234567XXX",
-            "branches": {},
-            "branches_len": 0,
-        },
-        "A0987654321": {
-            "address": " ",
-            "bankName": "Alior Bank",
-            "countryISO2": "PL",
-            "countryName": "POLAND",
-            "isHeadquarter": False,
-            "swiftCode": "A0987654321",
-            "branches": None,
-        },
-        "A1234567890": {
-            "address": "Alior Bank Address",
-            "bankName": "Alior Bank",
-            "countryISO2": "PL",
-            "countryName": "POLAND",
-            "isHeadquarter": False,
-            "swiftCode": "A1234567890",
-            "branches": None,
-        },
-        "A1234567891": {
-            "address": "Alior Bank Address",
-            "bankName": "Alior Bank",
-            "countryISO2": "PL",
-            "countryName": "POLAND",
-            "isHeadquarter": False,
-            "swiftCode": "A1234567891",
-            "branches": None,
-        },
-        "C1234567890": {
-            "address": "",
-            "bankName": "Commerzbank",
-            "countryISO2": "DE",
-            "countryName": "GERMANY",
-            "isHeadquarter": False,
-            "swiftCode": "C1234567890",
-            "branches": None,
-        },
-        "D1234567890": {
-            "address": "Deutsche Bank Address",
-            "bankName": "Deutsche Bank",
-            "countryISO2": "DE",
-            "countryName": "GERMANY",
-            "isHeadquarter": False,
-            "swiftCode": "D1234567890",
-            "branches": None,
-        },
-    }
-
-
-@pytest.fixture(name="expected_results_of_reading_countries")
-def fixture_expected_results_of_reading_countries():
-    """Expected results of reading exemplary countries data from the database."""
-    return {
-        "PL": {
-            "countryISO2": "PL",
-            "countryName": "POLAND",
-            "swiftCodes": {
-                "A1234567XXX": {
-                    "address": "Alior Bank Address",
-                    "bankName": "Alior Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": True,
-                    "swiftCode": "A1234567XXX",
-                },
-                "P1234567XXX": {
-                    "address": "PKO Bank Address",
-                    "bankName": "PKO Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": True,
-                    "swiftCode": "P1234567XXX",
-                },
-                "A0987654321": {
-                    "address": " ",
-                    "bankName": "Alior Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": False,
-                    "swiftCode": "A0987654321",
-                },
-                "A1234567890": {
-                    "address": "Alior Bank Address",
-                    "bankName": "Alior Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": False,
-                    "swiftCode": "A1234567890",
-                },
-                "A1234567891": {
-                    "address": "Alior Bank Address",
-                    "bankName": "Alior Bank",
-                    "countryISO2": "PL",
-                    "isHeadquarter": False,
-                    "swiftCode": "A1234567891",
-                },
-            },
-            "swift_codes_len": 5,
-        },
-        "DE": {
-            "countryISO2": "DE",
-            "countryName": "GERMANY",
-            "swiftCodes": {
-                "D1234567XXX": {
-                    "address": "Deutsche Bank Address",
-                    "bankName": "Deutsche Bank",
-                    "countryISO2": "DE",
-                    "isHeadquarter": True,
-                    "swiftCode": "D1234567XXX",
-                },
-                "C1234567890": {
-                    "address": "",
-                    "bankName": "Commerzbank",
-                    "countryISO2": "DE",
-                    "isHeadquarter": False,
-                    "swiftCode": "C1234567890",
-                },
-                "D1234567890": {
-                    "address": "Deutsche Bank Address",
-                    "bankName": "Deutsche Bank",
-                    "countryISO2": "DE",
-                    "isHeadquarter": False,
-                    "swiftCode": "D1234567890",
-                },
-            },
-            "swift_codes_len": 3,
-        },
-    }
 
 
 def test_read_bank_correct_data(
@@ -442,8 +235,6 @@ def test_create_bank_incorrect_bank_data(client: TestClient):
         swift_info_special_characters,
     ) = diff_between_codes("SWIFT")
 
-    
-
     incorrect_requests = [
         {
             "bank_data": {
@@ -509,7 +300,10 @@ def test_create_bank_incorrect_bank_data(client: TestClient):
                 "isHeadquarter": False,
                 "swiftCode": "SWIFTCODXXX",
             },
-            "message": "Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+            "message": (
+                "Headquarter's SWIFT codes must end with XXX and branches'"
+                " cannot and with XXX."
+            ),
         },
         {
             "bank_data": {
@@ -520,20 +314,23 @@ def test_create_bank_incorrect_bank_data(client: TestClient):
                 "isHeadquarter": True,
                 "swiftCode": "SWIFTCODEEE",
             },
-            "message": "Headquarter's SWIFT codes must end with XXX and branches' cannot and with XXX.",
+            "message": (
+                "Headquarter's SWIFT codes must end with XXX and branches'"
+                " cannot and with XXX."
+            ),
         },
-
     ]
 
     for incorrect_request in incorrect_requests:
         response = client.post(
-                "/v1/swift-codes",
-                json=incorrect_request["bank_data"],
-            )
+            "/v1/swift-codes",
+            json=incorrect_request["bank_data"],
+        )
         data = response.json()
 
         assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
         assert data["detail"] == incorrect_request["message"]
+
 
 def test_create_bank_incorrect_contry_name(client: TestClient):
     """Tests if correct response is provided for incorrect country name during bank creation.
@@ -544,27 +341,32 @@ def test_create_bank_incorrect_contry_name(client: TestClient):
         Test client used with in-memory database.
     """
     request1 = {
-                "address": "valid address",
-                "bankName": "valid bank name",
-                "countryISO2": "PL",
-                "countryName": "POLAND",
-                "isHeadquarter": False,
-                "swiftCode": "SWIFTCODEE1",
-            }
+        "address": "valid address",
+        "bankName": "valid bank name",
+        "countryISO2": "PL",
+        "countryName": "POLAND",
+        "isHeadquarter": False,
+        "swiftCode": "SWIFTCODEE1",
+    }
     request2 = {
-                "address": "valid address",
-                "bankName": "valid bank name",
-                "countryISO2": "PL",
-                "countryName": "POLANDD",
-                "isHeadquarter": False,
-                "swiftCode": "SWIFTCODEE2",
-            }
-
+        "address": "valid address",
+        "bankName": "valid bank name",
+        "countryISO2": "PL",
+        "countryName": "POLANDD",
+        "isHeadquarter": False,
+        "swiftCode": "SWIFTCODEE2",
+    }
 
     client.post("/v1/swift-codes", json=request1)
     response = client.post("/v1/swift-codes", json=request2)
-    assert response.status_code == status.HTTP_409_CONFLICT, "Request should end with conflig (409)"
-    assert response.json()["detail"] == "In the database the correct countryName for countryISO2 = PL is POLAND.", "Detail should be different"
+    assert (
+        response.status_code == status.HTTP_409_CONFLICT
+    ), "Request should end with conflig (409)"
+    assert (
+        response.json()["detail"]
+        == "In the database the correct countryName for countryISO2 = PL is POLAND."
+    ), "Detail should be different"
+
 
 def test_create_bank_unique_constraint_failed(client: TestClient):
     """Tests if correct response is provided for unique constraint failed during bank creation.
@@ -575,29 +377,30 @@ def test_create_bank_unique_constraint_failed(client: TestClient):
         Test client used with in-memory database.
     """
     request1 = {
-                "address": "valid address",
-                "bankName": "valid bank name",
-                "countryISO2": "PL",
-                "countryName": "POLAND",
-                "isHeadquarter": False,
-                "swiftCode": "SWIFTCODEEE",
-            }
+        "address": "valid address",
+        "bankName": "valid bank name",
+        "countryISO2": "PL",
+        "countryName": "POLAND",
+        "isHeadquarter": False,
+        "swiftCode": "SWIFTCODEEE",
+    }
     request2 = {
-                "address": "valid address",
-                "bankName": "valid bank name",
-                "countryISO2": "PL",
-                "countryName": "POLAND",
-                "isHeadquarter": False,
-                "swiftCode": "SWIFTCODEEE",
-            }
-
+        "address": "valid address",
+        "bankName": "valid bank name",
+        "countryISO2": "PL",
+        "countryName": "POLAND",
+        "isHeadquarter": False,
+        "swiftCode": "SWIFTCODEEE",
+    }
 
     client.post("/v1/swift-codes", json=request1)
     response = client.post("/v1/swift-codes", json=request2)
-    assert response.status_code == status.HTTP_409_CONFLICT, "Request should end with conflig (409)"
-    assert response.json()["detail"] == "UNIQUE constraint failed: bank.swift_code", "Detail should be different"
-
-# TODO: create integration test from Excel to get, post, delete
+    assert (
+        response.status_code == status.HTTP_409_CONFLICT
+    ), "Request should end with conflig (409)"
+    assert (
+        response.json()["detail"] == "UNIQUE constraint failed: bank.swift_code"
+    ), "Detail should be different"
 
 
 def test_delete_bank_correct_data(
