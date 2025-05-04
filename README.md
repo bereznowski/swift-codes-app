@@ -22,7 +22,7 @@ Once running, you can use Swagger UI at [http://127.0.0.1:8000/docs](http://127.
 ## Additional assumptions
 I have made a few assumptions/clarifications that were not directly stated in the [requirements](task_requirements/task_requirements.pdf).
 
-- A branch can exist without a headquarters (e.g., `ALBPPLP1BMW` in the Excel file), and a headquarters can exist without a branch (e.g., `AAISALTRXXX` in the Excel file). Consequently, deletions are not cascaded.
-- The last three characters of the SWIFT code must align with the `isHeadquarter` field (for example, a bank with the SWIFT code `A1234567890` cannot be marked as a headquarters at the same time).
+- A branch can exist without a headquarter (e.g., `ALBPPLP1BMW` in the Excel file), and a headquarter can exist without a branch (e.g., `AAISALTRXXX` in the Excel file). Consequently, deletions are not cascaded.
+- The last three characters of the SWIFT code must align with the `isHeadquarter` field (for example, a bank with the SWIFT code `A1234567890` cannot be marked as a headquarter at the same time).
 - New countries can be added to the database when a new bank is created.
 - A country with a given ISO2 code must always have the same name in POST requests.
