@@ -67,7 +67,7 @@ def test_create_countries(session: Session, countries_data_after_excel: list[dic
     ), "There should be 2 countries in the database"
 
 
-def test_check_if_proper_headquarter_or_branch():  # TODO: split to two tests
+def test_check_if_proper_headquarter_or_branch():
     """Tests if headquarters and branches are properly recognized by SWIFT codes."""
 
     correct_examples = [

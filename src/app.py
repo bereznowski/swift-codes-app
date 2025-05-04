@@ -74,14 +74,11 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
 
     Returns
     -------
-    BankHeadquarter or BankBranch
+    BankHeadquarter or BankBranch or JSONResponse
         Bank information with branches if headquarter, otherwise without branches.
-
-    Raises
-    ------
-    HTTPException
-        Not found (404) if a bank with a given SWIFT code does not exist in the database.
-        Unprocessable entity (422) if the SWIFT code is incorrect.
+        JSONResponse contains details of HTTPException raised during execution:
+            - Not found (404) if a bank with a given SWIFT code does not exist in the database.
+            - Unprocessable entity (422) if the SWIFT code is incorrect.
     """
     check_if_alphanumeric(code=swift_code)
     check_code_length(code=swift_code, code_type="SWIFT")
@@ -112,14 +109,11 @@ def read_country(*, session: Session = Depends(get_session), country_iso2_code: 
 
     Returns
     -------
-    CountryWithBanks
+    CountryWithBanks or JSONResponse
         Country information with associated banks.
-
-    Raises
-    ------
-    HTTPException
-        Not found (404) if a country with a given ISO2 code does not exist in the database.
-        Unprocessable entity (422) if the country ISO2 code is incorrect.  # TODO: move raises to possible return values
+        JSONResponse contains details of HTTPException raised during execution:
+            - Not found (404) if a country with a given ISO2 code does not exist in the database.
+            - Unprocessable entity (422) if the country ISO2 code is incorrect.
     """
     check_if_alpha(code=country_iso2_code)
     check_code_length(code=country_iso2_code, code_type="ISO2")
@@ -147,16 +141,16 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
     -------
     JSONResponse
         Information about successfull creation of the bank and the country (if needed).
+        Details of HTTPException raised during execution:
+            - Unprocessable entity (422) if the bank SWIFT code is incorrect.
+            - Unprocessable entity (422) if the country ISO2 code is incorrect.
+            - Unprocessable entity (422) if the country name is not uppercase.
 
     Raises
     ------
     HTTPException
         Conflict (409) if provided country name is different from the one in the database.
         Conflict (409) if SWIFT code uniqueness is violated.
-        Conflict (409) if any other integrity error occurs.
-        Unprocessable entity (422) if the bank SWIFT code is incorrect.
-        Unprocessable entity (422) if the country ISO2 code is incorrect.
-        Unprocessable entity (422) if the country name is not uppercase.
         Internal server error (500) if database error.
     """
     # code length checks are managed by SQLModel (no additional check needed)
@@ -257,13 +251,14 @@ def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
     -------
     JSONResponse
         Information about successfull deletion of the bank.
+        Details of HTTPException raised during execution:
+            - Not found (404) if a bank with a given SWIFT code does not exist in the database.
+            - Unprocessable entity (422) if the SWIFT code is incorrect.
 
     Raises
     ------
     HTTPException
-        Not found (404) if a bank with a given SWIFT code does not exist in the database.
         Conflict (409) if database integrity is violated.
-        Unprocessable entity (422) if the SWIFT code is incorrect.
         Internal server error (500) if database error.
     """
     check_if_alphanumeric(code=swift_code)

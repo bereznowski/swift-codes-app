@@ -5,7 +5,7 @@ from io import BytesIO
 import pytest
 import pandas as pd
 
-from fastapi import HTTPException, status
+from fastapi import status
 
 from unit.utils import check_bank_data_correctness, check_country_data_correctness
 
@@ -245,6 +245,29 @@ def test_swift_codes_app(
     expected_results_of_reading_banks,
     expected_results_of_reading_countries,
 ):
+    """Tests the whole flow of the application from loading.
+
+    mock_df : pandas.DataFrame
+        The data used in mock Excel file.
+    session : sqlmodel.Session
+        SQLModel Session used to interact with in-memory database.
+    fastapi.TestClient
+        Test client used with in-memory database.
+    countries_data_after_excel : list[dict]
+        List of dicts representing countries data.
+    expected_results_of_reading_banks_after_post : dict{dict}
+        Dict of dicts presenting expected banks data of retrieving
+        banks data after POST operation.
+    expected_results_of_reading_countries_after_post : dict{dict}
+        Dict of dicts presenting expected countries data of retrieving
+        banks data after POST operation.
+    expected_results_of_reading_banks : dict{dict}
+        Dict of dicts presenting expected banks data of retrieving
+        banks data after DELETE operation.
+    expected_results_of_reading_countries : dict{dict}
+        Dict of dicts presenting expected countries data of retrieving
+        banks data after DELETE operation.
+    """
     output = BytesIO()
 
     with pd.ExcelWriter(output, engine="xlsxwriter") as writer:
