@@ -67,18 +67,18 @@ def read_bank(*, session: Session = Depends(get_session), swift_code: str):
 
     Parameters
     ----------
-    session : sqlmodel.Session
-        SQLModel Session used to interact with the database.
-    swift_code : str
-        The SWIFT code of the bank.
+    session : sqlmodel.Session\n
+        SQLModel Session used to interact with the database.\n
+    swift_code : str\n
+        The SWIFT code of the bank.\n
 
     Returns
     -------
-    BankHeadquarter or BankBranch or JSONResponse
-        Bank information with branches if headquarter, otherwise without branches.
-        JSONResponse contains details of HTTPException raised during execution:
-            - Not found (404) if a bank with a given SWIFT code does not exist in the database.
-            - Unprocessable entity (422) if the SWIFT code is incorrect.
+    BankHeadquarter or BankBranch or JSONResponse\n
+        Bank information with branches if headquarter, otherwise without branches.\n
+        JSONResponse contains details of HTTPException raised during execution:\n
+            - Not found (404) if a bank with a given SWIFT code does not exist in the database.\n
+            - Unprocessable entity (422) if the SWIFT code is incorrect.\n
     """
     check_if_alphanumeric(code=swift_code)
     check_code_length(code=swift_code, code_type="SWIFT")
@@ -102,18 +102,18 @@ def read_country(*, session: Session = Depends(get_session), country_iso2_code: 
 
     Parameters
     ----------
-    session : sqlmodel.Session
-        SQLModel Session used to interact with the database.
-    country_iso2_code : str
-        The ISO2 code of the country.
+    session : sqlmodel.Session\n
+        SQLModel Session used to interact with the database.\n
+    country_iso2_code : str\n
+        The ISO2 code of the country.\n
 
     Returns
     -------
-    CountryWithBanks or JSONResponse
-        Country information with associated banks.
-        JSONResponse contains details of HTTPException raised during execution:
-            - Not found (404) if a country with a given ISO2 code does not exist in the database.
-            - Unprocessable entity (422) if the country ISO2 code is incorrect.
+    CountryWithBanks or JSONResponse\n
+        Country information with associated banks.\n
+        JSONResponse contains details of HTTPException raised during execution:\n
+            - Not found (404) if a country with a given ISO2 code does not exist in the database.\n
+            - Unprocessable entity (422) if the country ISO2 code is incorrect.\n
     """
     check_if_alpha(code=country_iso2_code)
     check_code_length(code=country_iso2_code, code_type="ISO2")
@@ -132,26 +132,26 @@ def create_bank(*, session: Session = Depends(get_session), bank_create: BankCre
 
     Parameters
     ----------
-    session : sqlmodel.Session
-        SQLModel Session used to interact with the database.
-    bank_create : BankCreate
-        JSON providing information about the bank and the country.
+    session : sqlmodel.Session\n
+        SQLModel Session used to interact with the database.\n
+    bank_create : BankCreate\n
+        JSON providing information about the bank and the country.\n
 
     Returns
     -------
-    JSONResponse
-        Information about successfull creation of the bank and the country (if needed).
-        Details of HTTPException raised during execution:
-            - Unprocessable entity (422) if the bank SWIFT code is incorrect.
-            - Unprocessable entity (422) if the country ISO2 code is incorrect.
-            - Unprocessable entity (422) if the country name is not uppercase.
+    JSONResponse\n
+        Information about successfull creation of the bank and the country (if needed).\n
+        Details of HTTPException raised during execution:\n
+            - Unprocessable entity (422) if the bank SWIFT code is incorrect.\n
+            - Unprocessable entity (422) if the country ISO2 code is incorrect.\n
+            - Unprocessable entity (422) if the country name is not uppercase.\n
 
     Raises
     ------
-    HTTPException
-        Conflict (409) if provided country name is different from the one in the database.
-        Conflict (409) if SWIFT code uniqueness is violated.
-        Internal server error (500) if database error.
+    HTTPException\n
+        Conflict (409) if provided country name is different from the one in the database.\n
+        Conflict (409) if SWIFT code uniqueness is violated.\n
+        Internal server error (500) if database error.\n
     """
     # code length checks are managed by SQLModel (no additional check needed)
     check_if_alpha(code=bank_create.countryISO2)
@@ -242,24 +242,24 @@ def delete_bank(*, session: Session = Depends(get_session), swift_code: str):
 
     Parameters
     ----------
-    session : sqlmodel.Session
-        SQLModel Session used to interact with the database.
-    swift_code : str
-        The SWIFT code of the bank.
+    session : sqlmodel.Session\n
+        SQLModel Session used to interact with the database.\n
+    swift_code : str\n
+        The SWIFT code of the bank.\n
 
     Returns
     -------
-    JSONResponse
-        Information about successfull deletion of the bank.
-        Details of HTTPException raised during execution:
-            - Not found (404) if a bank with a given SWIFT code does not exist in the database.
-            - Unprocessable entity (422) if the SWIFT code is incorrect.
+    JSONResponse\n
+        Information about successfull deletion of the bank.\n
+        Details of HTTPException raised during execution:\n
+            - Not found (404) if a bank with a given SWIFT code does not exist in the database.\n
+            - Unprocessable entity (422) if the SWIFT code is incorrect.\n
 
     Raises
     ------
-    HTTPException
-        Conflict (409) if database integrity is violated.
-        Internal server error (500) if database error.
+    HTTPException\n
+        Conflict (409) if database integrity is violated.\n
+        Internal server error (500) if database error.\n
     """
     check_if_alphanumeric(code=swift_code)
     check_code_length(code=swift_code, code_type="SWIFT")

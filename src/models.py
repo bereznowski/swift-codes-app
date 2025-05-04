@@ -140,7 +140,7 @@ class Country(SQLModel, table=True):
 class CountryWithBanks(SQLModel):
     """Object model for the country used when describing country with associated banks."""
 
-    countryISO2: str
+    countryISO2: str = Field(min_length=ISO2_CODE_LEN, max_length=ISO2_CODE_LEN)
     countryName: str
     swiftCodes: list[BankWithoutCountryName]
 
